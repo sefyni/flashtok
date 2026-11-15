@@ -253,6 +253,7 @@ window.renderHub = function(){
     ${nx ? `<button class="hubcc" data-h="plan">${ic("calendar", 20, "#25f4ee")}<span><b>${esc(nx.x.nom)} · ${nx.j ? "J-" + nx.j : "aujourd'hui"}</b><small>${nx.mastered}/${nx.scope.length} cartes maîtrisées · aujourd'hui ${pl(nx.left, "nouvelle")} + ${nx.due} à revoir</small></span><span class="chev">›</span></button>` : ""}
     <div class="sect">Modes</div>
     <div class="hubgrid">
+      ${hubTile("jeux", "zap", "#ff2d87", "Jeux", "Swipe, légendes, paires, survie")}
       ${hubTile("plan", "calendar", "#0a7cff", "Plan de colle", nx ? "Jour par jour jusqu'au " + (nx.j ? "J-" + nx.j : "CC") : "Ajoute une date")}
       ${hubTile("qcm", "listcheck", "#fe2c55", "QCM concours", "5 propositions A–E")}
       ${hubTile("legende", "puzzle", "#7b3cff", "Schémas à compléter", msk + " schémas à légender")}
@@ -272,6 +273,7 @@ $("pgHub").addEventListener("click", e => {
   if (h === "go") startSession();
   else if (h === "plan") openPage(ccActive().length ? "plan" : "cc");
   else if (h === "qcm") openPage("qcm");
+  else if (h === "jeux") openPage("jeux");
   else if (h === "legende") openCustom({ key:"legende", nom:"Schémas à compléter", mode:"schema", f:c => !!c.masks });
   else if (h === "erreurs") openErreurs();
   else if (h === "ecoute") openListen();
@@ -687,5 +689,5 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 // le gestionnaire « Esc » ferme aussi l'écoute
 document.addEventListener("keydown", e => { if (e.key === "Escape" && listenEl.classList.contains("show")) lsClose(); });
 
-window.FT_PLUS = { speakable, makeQcm, stmtPool, ccPlan, sessionCards, todaysNew, qcmFor };   // pour les tests
+window.FT_PLUS = { speakable, makeQcm, stmtPool, realize, ccPlan, sessionCards, todaysNew, qcmFor, qcmFromCards, nearestMask, courseSort, keyOf, chLabel };   // pour les tests
 })();

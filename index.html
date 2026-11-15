@@ -487,6 +487,9 @@
 <div class="page" id="pgPlan"></div>
 <!-- QCM concours : réglages -->
 <div class="page" id="pgQcm"></div>
+<!-- Jeux -->
+<div class="page" id="pgJeux"></div>
+<div class="overlay" id="game"></div>
 <!-- Mode écoute -->
 <div class="overlay" id="listen"></div>
 
@@ -1239,13 +1242,13 @@ function openFeedFor(name){
 /* =====================================================================
    PAGES
    ===================================================================== */
-const pages = { mat:"pgMat", add:"pgAdd", prof:"pgProf", defis:"pgDefis", exam:"pgExam", serie:"pgSerie", shop:"pgShop", cc:"pgCC", hub:"pgHub", plan:"pgPlan", qcm:"pgQcm" };
+const pages = { mat:"pgMat", add:"pgAdd", prof:"pgProf", defis:"pgDefis", exam:"pgExam", serie:"pgSerie", shop:"pgShop", cc:"pgCC", hub:"pgHub", plan:"pgPlan", qcm:"pgQcm", jeux:"pgJeux" };
 function setNav(n){ document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.nav === n)); }
 function hidePages(){ Object.values(pages).forEach(p => $(p).classList.remove("show")); $("top").style.display = ""; }
 function openPage(n){
   hidePages(); closeAcct(); setNav(n); $("top").style.display = "none";
   ({ mat:renderMat, prof:renderProf, add:fillAddForm, defis:renderDefis, exam:renderExamSetup, serie:renderSerie, shop:renderShop, cc:renderCC,
-     hub:() => renderHub(), plan:() => renderPlan(), qcm:() => renderQcmSetup() })[n]();
+     hub:() => renderHub(), plan:() => renderPlan(), qcm:() => renderQcmSetup(), jeux:() => renderJeux() })[n]();
   $(pages[n]).classList.add("show"); $(pages[n]).scrollTop = 0;
 }
 $("nav").addEventListener("click", e => {
@@ -1882,5 +1885,6 @@ document.addEventListener("pointerdown", function first(){
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
 </script>
 <script src="plus.js"></script>
+<script src="games.js"></script>
 </body>
 </html>

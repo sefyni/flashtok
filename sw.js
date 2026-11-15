@@ -1,12 +1,13 @@
 // FlashTok — fonctionne hors ligne.
 // Réseau d'abord (pour récupérer tes nouvelles cartes), cache si pas de connexion.
-const CACHE = "flashtok-v20";
+const CACHE = "flashtok-v21";
 const VCACHE = "flashtok-videos";
 const FILES = [
   "./",
   "index.html",
   "cards.js",
   "plus.js",
+  "games.js",
   "audio.js",
   "manifest.webmanifest",
   "katex/katex.min.css",
