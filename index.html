@@ -661,7 +661,7 @@ const math = el => window.renderMathInElement && renderMathInElement(el, { delim
 const toast = (t, icon) => { const d = document.createElement("div"); d.className = "toast"; d.innerHTML = (icon ? `<span class="ico-row">${ic(icon, 16)}` : "<span>") + esc(t) + "</span>"; document.body.appendChild(d); setTimeout(()=>d.remove(),1700); };
 const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch(e){} };
 function banner(em, title, sub, sound){ if (sound && window.Sound) Sound.SFX.fanfare(); const d = document.createElement("div"); d.className = "banner"; d.innerHTML = `<div class="em">${ic(em, 26, "#fff")}</div><div><b>${esc(title)}</b><span>${esc(sub)}</span></div>`; document.body.appendChild(d); setTimeout(()=>d.remove(), 3300); }
-function xpFloat(x, y, n){ const d = document.createElement("div"); d.className = "xpf"; d.textContent = "+" + n + " XP"; d.style.left = x + "px"; d.style.top = y + "px"; document.body.appendChild(d); setTimeout(()=>d.remove(), 1000); }
+function xpFloat(){}                               // XP retiré de l'affichage
 const ICON = {
   heart:'<svg class="ic i" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-9.6-9.3C.9 8.2 3 4.5 6.7 4.5c2.2 0 3.6 1.2 4.3 2.4h2c.7-1.2 2.1-2.4 4.3-2.4 3.7 0 5.8 3.7 4.3 7.2C19.5 16.4 12 21 12 21z"/></svg>',
   book:'<svg class="ic i" viewBox="0 0 24 24" fill="currentColor"><path d="M6 2.5h12a1 1 0 0 1 1 1V22l-7-5-7 5V3.5a1 1 0 0 1 1-1z"/></svg>',
@@ -735,13 +735,16 @@ function afterProgress(lvlBefore){
     banner("target", "Objectif du jour atteint !", `${S.goal} révisions · série : ${streak()} jour${streak()>1?"s":""}`, true);
   }
   // missions
-  for (const m of todaysMissions()) if (!m.done && m.cur >= m.goal) {
-    S.today.missions.push(m.id); S.xp += 50;
-    setTimeout(() => { banner(m.em, "Mission accomplie · +50 XP", m.label, true); confetti(60); }, 700);
+  const ms = todaysMissions();
+  for (const m of ms) if (!m.done && m.cur >= m.goal) {
+    S.today.missions.push(m.id);
+    setTimeout(() => { banner(m.em, "Défi réussi", m.label, true); confetti(60); }, 700);
   }
-  // niveau
-  if (level(S.xp) > lvlBefore) setTimeout(() => { banner("star", `Niveau ${level(S.xp)} !`, "Continue comme ça", true); confetti(120); buzz(60); }, 1200);
-  checkBadges();
+  // les 3 défis du jour réussis = un gel de série offert
+  if (ms.length && ms.every(m => S.today.missions.includes(m.id)) && !S.today.gelGiven) {
+    S.today.gelGiven = true;
+    if (S.gels < 3) { S.gels++; setTimeout(() => banner("snow", "Défis du jour terminés", `+1 gel de série (${S.gels}/3)`, true), 2000); }
+  }
   save(); updateHud();
 }
 function checkBadges(){
@@ -754,7 +757,7 @@ function showCombo(){
   const el = $("combo");
   if (combo >= 3) {
     const mult = Math.min(1 + Math.floor(combo / 5), 4);
-    el.innerHTML = `<span class="ico-row">${ic("flame", 16, "#fff")} COMBO ${combo}${mult > 1 ? `  ·  XP ×${mult}` : ""}</span>`;
+    el.innerHTML = `<span class="ico-row">${ic("flame", 16, "#fff")} COMBO ${combo}</span>`;
     el.classList.add("show"); el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump");
     if (combo % 5 === 0) { buzz(25); confetti(40); Sound.SFX.combo(combo); }
   } else el.classList.remove("show");
@@ -995,7 +998,7 @@ function quizSlide(item, i){
   <section class="slide quiz" data-quiz="${esc(idOf(c))}" style="--c1:${m.couleurs[1]};--c2:${m.couleurs[0]}">
     <div class="content" style="display:flex;align-items:center"><div class="qbox">
       ${quizInner(item)}
-      <div class="qwho">@${esc(m.nom.toLowerCase())} · +15 XP si juste</div>
+      <div class="qwho">@${esc(m.nom.toLowerCase())}</div>
     </div></div>
     <div class="bar"><i style="width:${((i+1)/list.length*100).toFixed(1)}%"></i></div>
   </section>`;
@@ -1284,7 +1287,7 @@ function renderDefis(){
   $("goals").innerHTML = [10,20,30,50].map(g => `<button class="${g===S.goal?"on":""}" data-g="${g}">${g}/jour</button>`).join("");
   $("missions").innerHTML = todaysMissions().map(m => `<div class="mission ${m.done?"done":""}"><div class="em">${ic(m.em, 24)}</div>
     <div class="t"><b>${esc(m.label)}</b><div class="meter"><i style="width:${m.cur/m.goal*100}%"></i></div></div>
-    <div class="xp">${m.done ? "✓ fait" : `${m.cur}/${m.goal} · +50`}</div></div>`).join("");
+    <div class="xp">${m.done ? "✓ fait" : `${m.cur}/${m.goal}`}</div></div>`).join("");
   const cc = nextCC();
   $("ccInfo").innerHTML = cc && G > S.goal ? `<p class="note" style="text-align:center">Objectif monté à ${G} pour « ${esc(cc.nom)} » dans ${cc.date - TODAY()} j (${ccLeft(cc)} cartes pas encore maîtrisées).</p>` : "";
 }
@@ -1298,22 +1301,16 @@ function thumbHTML(c, attr = ""){
     <div class="views">${ICON.play} ${rec(c) ? rec(c).n : 0} · ${dots(box(c))}</div></button>`;
 }
 function renderProf(){
-  const L = level(S.xp), a = xpFor(L), b = xpFor(L+1);
   const mastered = ALL.filter(c => box(c) >= MASTER).length, favs = ALL.filter(isFav);
   $("pgProf").innerHTML = `
     <div class="prof"><div class="big">${ic("user", 44, "#fff")}</div><div class="handle">@moi</div>
       <div class="stats"><div><b>${S.total}</b><span>Révisions</span></div><div><b>${mastered}</b><span>Maîtrisées</span></div><div><b>${favs.length}</b><span>Favoris</span></div><div><b>${S.bestCombo}</b><span>Combo max</span></div></div>
-      <div class="lvl"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><b style="color:#fff">Niveau ${L}</b><span>${S.xp - a} / ${b - a} XP</span></div>
-        <div class="meter"><i style="width:${(S.xp - a)/(b - a)*100}%"></i></div></div>
-      <div style="display:flex;gap:8px;justify-content:center;margin-top:14px"><span class="xpchip">${ic("star", 16)} ${xpBal()} XP à dépenser</span>
-        <button class="xpchip" style="color:#fff" data-p="shop">${ic("shop", 16)} Boutique</button></div></div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:14px"><button class="xpchip" style="color:#fff" data-p="shop">${ic("palette", 16)} Thèmes et ambiances</button></div></div>
     <div class="sect">Favoris</div>
     ${favs.length ? `<div class="vgrid" id="favGrid" style="margin:0 -16px">${favs.map(c => thumbHTML(c)).join("")}</div>`
                   : `<div class="card2" style="color:#888;font-size:14px;text-align:center">Double-tape une carte (ou touche le cœur) pour la garder ici.</div>`}
     ${(S.exams||[]).length ? `<div class="sect">Contrôles · record ${Math.max(...S.exams.map(e => e.note))}/20</div><div class="card2">${
       S.exams.slice(-5).reverse().map(e => `<div class="hist"><span>${esc(e.mats.join(", "))} · ${e.n} q.<br><small style="color:#888">${dayLabel(e.d)}</small></span><b style="color:${noteColor(e.note)}">${e.note}/20</b></div>`).join("")}</div>` : ""}
-    <div class="sect">Badges · ${BADGES.filter(b => S.badges[b.id] && S.badges[b.id] !== "pending").length}/${BADGES.length}</div>
-    <div class="badges">${BADGES.map(b => `<div class="bdg ${S.badges[b.id] && S.badges[b.id] !== "pending" ? "on" : ""}"><div class="em">${ic(b.em, 28)}</div>${esc(b.nom)}</div>`).join("")}</div>
     <div class="sect">Son</div>
     <div class="card2">
       <div style="font-size:14px;margin-bottom:10px" class="ico-row">${ic("music", 18)} Musique de fond</div>
@@ -1382,7 +1379,7 @@ function renderSerie(){
     <div class="card2"><div class="gels">${[0,1,2].map(k => `<span class="${k < S.gels ? "have" : ""}">${ic("snow", 22, k < S.gels ? "#7fd6ff" : "#444")}</span>`).join("")}
       <b style="margin-left:6px">${S.gels}/3</b></div>
       <div style="font-size:13px;color:#aaa;line-height:1.45">Un gel protège ta série pour un jour où tu n'as pas pu réviser. Il s'utilise tout seul le lendemain.</div>
-      <button class="rowbtn" data-z="shop" style="margin-top:12px"><span class="ico-row">${ic("shop", 18)} Acheter des gels à la boutique</span></button></div>`;
+      <div style="font-size:13px;color:#aaa;line-height:1.45;margin-top:8px">Réussis les 3 défis du jour pour gagner un gel (3 au maximum).</div></div>`;
 }
 $("pgSerie").addEventListener("click", e => { const b = e.target.closest("[data-z]"); if (!b) return; Sound.SFX.tap();
   const z = b.dataset.z;
@@ -1408,27 +1405,19 @@ const GEL_PRIX = 150;
 function accent(){ return (THEMES[S.theme] || THEMES.tiktok).a; }
 function accent2(){ return (THEMES[S.theme] || THEMES.tiktok).b; }
 function applyTheme(){ const t = THEMES[S.theme] || THEMES.tiktok; document.documentElement.style.setProperty("--red", t.a); document.documentElement.style.setProperty("--cyan", t.b); }
-function musicModes(){ return Sound.Music.modes().filter(m => !m.paid || S.owned["mus:" + m.id]); }
+function musicModes(){ return Sound.Music.modes(); }
 let buyArmed = null;
 function renderShop(){
-  const bal = xpBal(), btn = (key, prix, owned, active) => owned
-    ? `<button class="buy ${active ? "act" : "own"}" data-use="${key}">${active ? "Actif" : "Utiliser"}</button>`
-    : `<button class="buy" data-buy="${key}" ${bal < prix ? "disabled" : ""}>${buyArmed === key ? "Confirmer ?" : prix + " XP"}</button>`;
+  const btn = (key, active) => `<button class="buy ${active ? "act" : "own"}" data-use="${key}">${active ? "Actif" : "Utiliser"}</button>`;
   $("pgShop").innerHTML = `
-    <div class="ohead" style="padding:0 0 6px"><button class="x" data-z="back">‹</button><div class="tt" style="text-align:center;margin-right:46px">Boutique</div></div>
-    <div class="hero">${ic("star", 40, "#face15")}<b>${bal}</b><span>XP à dépenser · ton niveau ne baisse jamais</span></div>
-    <div class="sect">Protection</div>
-    <div class="item"><div class="ic2" style="background:#16364a">${ic("snow", 26, "#7fd6ff")}</div><div class="t"><b>Gel de série</b><small>Sauve ta série un jour sans révision. Tu en as ${S.gels}/3.</small></div>
-      ${S.gels >= 3 ? `<button class="buy own" disabled>Max</button>` : `<button class="buy" data-buy="gel" ${bal < GEL_PRIX ? "disabled" : ""}>${buyArmed === "gel" ? "Confirmer ?" : GEL_PRIX + " XP"}</button>`}</div>
+    <div class="ohead" style="padding:0 0 6px"><button class="x" data-z="back">‹</button><div class="tt" style="text-align:center;margin-right:46px">Thèmes et ambiances</div></div>
     <div class="sect">Thèmes de couleur</div>
     ${Object.entries(THEMES).map(([k, t]) => `<div class="item"><div class="sw"><i style="background:${t.a}"></i><i style="background:${t.b}"></i></div>
       <div class="t"><b>${t.nom}</b><small>${t.prix ? "Couleurs des boutons, anneaux et barres" : "Le thème de base"}</small></div>
-      ${btn("theme:" + k, t.prix, !t.prix || S.owned["theme:" + k], S.theme === k)}</div>`).join("")}
+      ${btn("theme:" + k, (S.theme || "tiktok") === k)}</div>`).join("")}
     <div class="sect">Ambiances musicales</div>
     ${SHOP_MUS.map(m => `<div class="item"><div class="ic2">${ic("music", 24, accent2())}</div><div class="t"><b>${m.nom}</b><small>${m.desc}</small></div>
-      <button class="try" data-try="${m.id}" aria-label="Écouter">${ic("play", 14)}</button>
-      ${btn("mus:" + m.id, m.prix, S.owned["mus:" + m.id], Sound.Music.on && Sound.Music.mode === m.id)}</div>`).join("")}
-    <p class="note">Gagne de l'XP en révisant : cartes, quiz, missions (+50) et contrôles.</p>`;
+      ${btn("mus:" + m.id, Sound.Music.on && Sound.Music.mode === m.id)}</div>`).join("")}`;
 }
 let tryTimer = null;
 $("pgShop").addEventListener("click", e => {
@@ -1854,7 +1843,7 @@ function finishExam(){
     <div class="ohead"><button class="x" data-x="close">×</button><div class="tt">Résultat du contrôle</div></div>
     <div class="result">
       <div class="note20"><div>${ic(em, 44, noteColor(note))}</div><b style="color:${noteColor(note)}">${String(note).replace(".", ",")}</b><span> / 20</span>
-        <div>${String(nOk).replace(".", ",")}/${qs.length} points · ${fmt(sec * 1000)} · +${gain} XP</div></div>
+        <div>${String(nOk).replace(".", ",")}/${qs.length} points · ${fmt(sec * 1000)}</div></div>
       ${qs.map((q, k) => { const a = RUN.ans[k], good = q.opts.find(o => o.ok);
         if (q.cours) return `<div class="corr ${ok[k] ? "" : "ko"}"><div class="q">${ic(ok[k] ? "ok" : "ko", 18, ok[k] ? "#2fd27a" : pts[k] >= 0.5 ? "#face15" : "#fe2c55")} <b>Énonce</b> ${prep(q.c.q)}</div>
           <div class="a">${a === null ? "<i>Pas répondu</i>" : q.cle ? `Points clés : <b>${RUN.ticks[k].length}/${q.cle.length}</b>` : `Auto-évaluation : <b>${a === 1 ? "tout bon" : a === 0.5 ? "à moitié" : "raté"}</b>`}</div>
