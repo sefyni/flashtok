@@ -252,6 +252,7 @@ window.renderHub = function(){
     <div class="sesspick"><span>Nombre de cartes</span>${SESS.map(n => `<button data-h="n${n}" class="${(S.sessN || 20) === n ? "on" : ""}">${n}</button>`).join("")}</div>
     <div class="hubgoal"><div class="meter"><i style="width:${Math.min(100, done / Math.max(1, goal) * 100).toFixed(0)}%"></i></div>Objectif du jour : ${done} / ${goal} révisions${s.leftNew ? ` · encore ${s.leftNew} nouvelles prévues après cette session` : ""}</div>
     ${nx ? `<button class="hubcc" data-h="plan">${ic("calendar", 20, "#25f4ee")}<span><b>${esc(nx.x.nom)} · ${nx.j ? "J-" + nx.j : "aujourd'hui"}</b><small>${nx.mastered}/${nx.scope.length} cartes maîtrisées · aujourd'hui ${pl(nx.left, "nouvelle")} + ${nx.due} à revoir</small></span><span class="chev">›</span></button>` : ""}
+    ${nx && nx.j <= 2 ? `<button class="hubcc" data-h="boss" style="border-color:#c9a400;background:linear-gradient(135deg,#2a2208,#1a0b2e)">${ic("crown", 20, "#face15")}<span><b>Le boss de ${esc(nx.x.nom)} t'attend</b><small>Tous les exercices mélangés, 3 vies : bats-le avant le jour J</small></span><span class="chev">›</span></button>` : ""}
     <div class="sect">Modes</div>
     <div class="hubgrid">
       ${hubTile("jeux", "zap", "#ff2d87", "Jeux", "Swipe, légendes, paires, survie")}
@@ -275,6 +276,7 @@ $("pgHub").addEventListener("click", e => {
   else if (h === "plan") openPage(ccActive().length ? "plan" : "cc");
   else if (h === "qcm") openPage("qcm");
   else if (h === "jeux") openPage("jeux");
+  else if (h === "boss") openGame("boss");
   else if (h === "legende") openCustom({ key:"legende", nom:"Schémas à compléter", mode:"schema", f:c => !!c.masks });
   else if (h === "erreurs") openErreurs();
   else if (h === "ecoute") openListen();

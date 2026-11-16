@@ -86,6 +86,36 @@ document.head.insertAdjacentHTML("beforeend", `<style>
   .stview img { max-width:100%; max-height:30vh; object-fit:contain; background:#fff; border-radius:12px; margin-top:12px; align-self:center; }
   .stview .tapz { position:absolute; inset:0; display:flex; } .stview .tapz div { flex:1; }
   .sthint { text-align:center; font-size:11.5px; color:var(--muted); margin-bottom:10px; }
+  /* carte mentale */
+  .mmtop { display:flex; gap:8px; margin-bottom:12px; } .mmtop button { padding:9px 12px; border-radius:999px; background:#1d1d1d; font-size:13px; font-weight:800; display:flex; gap:6px; align-items:center; }
+  .mmtop button.on { background:#25f4ee; color:#000; }
+  .mmroot { display:inline-block; padding:12px 18px; border-radius:16px; background:#fff; color:#000; font-weight:900; font-size:18px; } .mmroot small { display:block; font-size:12px; color:#666; font-weight:700; }
+  .mmbranches { margin-left:22px; padding:8px 0 0 18px; border-left:3px solid #333; display:flex; flex-direction:column; gap:10px; }
+  .mmb { position:relative; } .mmb::before { content:""; position:absolute; left:-18px; top:20px; width:16px; border-top:3px solid var(--bc); }
+  .mmn { display:flex; justify-content:space-between; gap:10px; width:100%; text-align:left; padding:10px 14px; border-radius:14px; background:var(--bc); color:#fff; font-weight:800; font-size:14.5px; line-height:1.3; }
+  .mmn span { font-weight:900; opacity:.8; }
+  .mmleaves { margin:8px 0 2px 16px; padding-left:14px; border-left:2px dashed var(--bc); display:flex; flex-direction:column; gap:6px; }
+  .mml { text-align:left; padding:8px 12px; border-radius:12px; background:#161616; font-size:13.5px; line-height:1.35; border:1px solid #262626; }
+  .mml.hid { background:#2a2208; color:#face15; border:1px dashed #face15; text-align:center; font-weight:900; } .mml.seen { animation:mskpop .3s; }
+  .mmleaves img { max-width:100%; max-height:24vh; object-fit:contain; background:#fff; border-radius:10px; }
+  /* flash */
+  .mskwrap.peek .msk:not(.open) { visibility:hidden; }
+  /* mots croisés */
+  .cwgrid { display:grid; gap:2px; margin:0 auto 12px; justify-content:center; }
+  .cwc { background:#f4f4f4; color:#000; border-radius:3px; position:relative; display:grid; place-items:center; font-weight:900; font-size:clamp(11px, 3.4vw, 17px); }
+  .cwc.empty { background:transparent; } .cwc.sel { background:#bff7f5; } .cwc.ok { background:#c9f3dc; color:#0b6b3a; }
+  .cwc i { position:absolute; top:1px; left:2px; font-size:8px; font-style:normal; color:#666; font-weight:700; }
+  .cwask { background:#141414; border-radius:14px; padding:12px; margin-bottom:12px; }
+  #cwIn, #boIn { width:100%; padding:12px; border-radius:12px; border:2px solid #333; background:#0c0c0c; color:#fff; font-size:17px; font-weight:800; outline:none; letter-spacing:.06em; }
+  #cwIn:focus, #boIn:focus { border-color:#25f4ee; } #boIn.good { border-color:#2fd27a; } #boIn.bad { border-color:#fe2c55; }
+  .cwclues button { display:block; width:100%; text-align:left; padding:9px 10px; border-radius:10px; font-size:13px; line-height:1.4; margin-bottom:4px; background:#121212; }
+  .cwclues button.sel { background:#0e2e30; } .cwclues button.done { opacity:.4; text-decoration:line-through; } .cwclues small { color:var(--muted); }
+  /* boss */
+  .bossbar { background:linear-gradient(135deg,#2a0b14,#1a0b2e); border:1px solid #3a1630; border-radius:16px; padding:12px; margin-bottom:12px; }
+  .bossname { font-weight:900; font-size:15px; display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+  .hp { height:12px; border-radius:6px; background:#000; overflow:hidden; } .hp i { display:block; height:100%; background:linear-gradient(90deg,#fe2c55,#ff7a1a); transition:width .4s; }
+  .hp.hit { animation:shake .35s; }
+  .bossrow { display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:13px; }
   /* exercice dans le feed */
   .exo .content { left:16px; right:16px; top:calc(var(--st) + 70px); bottom:120px; display:flex; flex-direction:column; justify-content:center; }
   .exobox { background:rgba(0,0,0,.35); border-radius:22px; padding:20px 18px; }
@@ -430,9 +460,9 @@ function apEnd(){
    9. TAPE LA RÉPONSE (sans propositions)
    ===================================================================== */
 const TP = {};
-function tapePool(){
+function tapePool(cs){
   const out = [];
-  scopeCards().forEach(c => (c.trous || []).forEach(tr => { const m = tr.t.match(CLOZE); if (m && !/\$/.test(m[1]) && plain(m[1]).length <= 30) out.push({ c, ans:plain(m[1]), txt:tr.t }); }));
+  (cs || scopeCards()).forEach(c => (c.trous || []).forEach(tr => { const m = tr.t.match(CLOZE); if (m && !/\$/.test(m[1]) && plain(m[1]).length <= 30) out.push({ c, ans:plain(m[1]), txt:tr.t }); }));
   return out;
 }
 function startTape(){
@@ -640,10 +670,323 @@ function stEnd(){
 }
 
 /* =====================================================================
+   13. CARTE MENTALE DE SÉANCE
+   ===================================================================== */
+function seanceGroups(){
+  const groups = new Map();
+  P.courseSort(scopeCards()).forEach(c => { const k = P.keyOf(c); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(c); });
+  return groups;
+}
+function seancePicker(title, attr, intro){
+  const groups = seanceGroups();
+  gameEl.innerHTML = head(title, scopeName(), "") + `<div class="gbody"><div class="atl-s">${intro}</div>
+    <div class="atl-scroll stlist">${[...groups].filter(([, a]) => a.length >= 2).map(([k, a]) => { const [m, ch] = k.split("|"); return `<button data-${attr}="${esc(k)}"><span>${esc(P.chLabel(ch))}<br><small style="white-space:normal">${esc(m)}</small></span><small>${a.length} notions</small></button>`; }).join("")}</div></div>`;
+  return groups;
+}
+const MMCOL = ["#fe2c55", "#25b8ee", "#7b3cff", "#13a35a", "#ff7a1a", "#d4a900", "#ff2d87", "#0a7cff"];
+const MM = {};
+const mmLeaves = c => c.cle && c.cle.length ? c.cle : [shortDef(c.a) || plain(c.a).slice(0, 140)];
+function startMindmap(key){
+  F.gStop();
+  const groups = key ? seanceGroups() : seancePicker("Carte mentale", "mmk", "Choisis une séance : toutes ses notions en une seule carte. Le mode quiz cache les détails, à toi de les retrouver.");
+  if (key && groups.has(key)) return mmShow(key, groups.get(key));
+  setH((e, b) => { if (b && b.dataset.mmk) mmShow(b.dataset.mmk, groups.get(b.dataset.mmk)); });
+}
+function mmShow(key, cards){
+  Object.assign(MM, { key, cards, quiz:false, open:new Set(), seen:new Set() });
+  mmRender();
+  setH((e, b) => {
+    if (!b) return;
+    if (b.dataset.mm === "quiz") { MM.quiz = !MM.quiz; MM.seen.clear(); if (MM.quiz) MM.cards.forEach((_, i) => MM.open.add(i)); mmRender(); return; }
+    if (b.dataset.mm === "all") { if (MM.open.size === MM.cards.length) MM.open.clear(); else MM.cards.forEach((_, i) => MM.open.add(i)); mmRender(); return; }
+    if (b.dataset.mm === "back") { startMindmap(); return; }
+    if (b.dataset.mmb !== undefined) { const i = +b.dataset.mmb; MM.open.has(i) ? MM.open.delete(i) : MM.open.add(i); Sound.SFX.tap(); mmRender(); return; }
+    if (b.dataset.mml && MM.quiz && !MM.seen.has(b.dataset.mml)) { MM.seen.add(b.dataset.mml); const [i, j] = b.dataset.mml.split("-").map(Number); b.innerHTML = prep(mmLeaves(MM.cards[i])[j]); b.classList.add("seen"); math(b); Sound.SFX.tap(); buzz(8); }
+  });
+}
+function mmRender(){
+  const [m, ch] = MM.key.split("|"), sc = gameEl.querySelector(".atl-scroll"), y = sc ? sc.scrollTop : 0;
+  gameEl.innerHTML = head("Carte mentale", esc(m), "") + `<div class="gbody">
+    <div class="mmtop"><button data-mm="quiz" class="${MM.quiz ? "on" : ""}">${ic("eye", 15)} Mode quiz</button><button data-mm="all">${MM.open.size === MM.cards.length ? "Tout fermer" : "Tout ouvrir"}</button><button data-mm="back">Séances</button></div>
+    <div class="atl-scroll"><div class="mm"><div class="mmroot">${esc(P.chLabel(ch))}<small>${MM.cards.length} notions</small></div>
+    <div class="mmbranches">${MM.cards.map((c, i) => { const col = MMCOL[i % MMCOL.length];
+      return `<div class="mmb" style="--bc:${col}"><button class="mmn" data-mmb="${i}">${prep(c.q)}<span>${MM.open.has(i) ? "−" : "+"}</span></button>${MM.open.has(i) ? `<div class="mmleaves">${mmLeaves(c).map((t, j) => `<button class="mml ${MM.quiz && !MM.seen.has(i + "-" + j) ? "hid" : "seen"}" data-mml="${i}-${j}">${MM.quiz && !MM.seen.has(i + "-" + j) ? "?" : prep(t)}</button>`).join("")}${c.img && !MM.quiz ? `<img src="${esc(c.img)}" alt="" loading="lazy">` : ""}</div>` : ""}</div>`; }).join("")}</div></div></div></div>`;
+  math(gameEl);
+  const s2 = gameEl.querySelector(".atl-scroll"); if (s2) s2.scrollTop = y;
+}
+
+/* =====================================================================
+   14. FLASH 3 SECONDES : regarde le schéma, puis reconstruis-le
+   ===================================================================== */
+const FS = { queue:[] };
+function startFlash(c){
+  F.gStop();
+  if (!c || !c.lab) { const pool = ALL.filter(x => x.lab && scopeCards().includes(x)); if (!FS.queue.length) FS.queue = shuffle((pool.length ? pool : ALL.filter(x => x.lab)).slice()); c = FS.queue.shift(); }
+  const labels = [...new Set(c.lab.filter(Boolean))];
+  Object.assign(FS, { c, labels, found:0, errs:0, reflash:0, sel:null, done:false, t0:0 });
+  gameEl.innerHTML = head("Flash 3 secondes", sub(c), "3") + `<div class="gbody"><div class="atl-scroll">
+    <div class="mo-ask" id="fsAsk"><b style="background:#face15">Mémorise !</b></div>
+    <div class="lgimg"><div class="mskwrap peek" id="fsWrap" style="--ar:${c.ar || 1.4}"><img src="${esc(c.img)}" alt="">${c.masks.map((r, k) => c.lab[k] ? `<button class="msk" data-l="${esc(c.lab[k])}" style="left:${r[0]}%;top:${r[1]}%;width:${r[2]}%;height:${r[3]}%"></button>` : "").join("")}</div></div>
+    <div class="atl-row" style="margin-top:10px"><span>${prep(c.q)}</span><span><b id="fsN">0</b>/${labels.length} · erreurs <b id="fsE">0</b></span></div>
+    <div class="lgchips" id="fsChips"></div><div id="fsEnd"></div></div></div>`;
+  fsPeek(() => {
+    FS.t0 = Date.now();
+    $("fsChips").innerHTML = shuffle(labels.slice()).map(l => `<button data-l="${esc(l)}">${esc(l)}</button>`).join("") + `<button data-fs="again" style="border-color:#face15">${ic("eye", 13)} Revoir 3 s (+5 s)</button>`;
+    timerHead(FS.t0);
+  });
+  setH((e, b) => {
+    if (FS.done) { if (b && b.dataset.fs === "next") startFlash(); else if (b && b.dataset.fs === "same") startFlash(FS.c); return; }
+    if (!FS.t0 || $("fsWrap").classList.contains("peek")) return;
+    if (b && b.dataset.fs === "again") { FS.reflash++; fsPeek(() => {}); return; }
+    const wrap = e.target.closest(".mskwrap");
+    if (wrap) { const m = e.target.closest(".msk:not(.open)") || P.nearestMask(wrap, e); if (!m) return; if (FS.sel && FS.sel.kind === "chip") fsTry(FS.sel.el, m); else fsSel("mask", m); return; }
+    if (b && b.closest("#fsChips") && b.dataset.l) { if (FS.sel && FS.sel.kind === "mask") fsTry(b, FS.sel.el); else fsSel("chip", b); }
+  });
+}
+function fsPeek(after){
+  const w = $("fsWrap"), ask = $("fsAsk"); w.classList.add("peek"); let s = 3;
+  ask.innerHTML = `<b style="background:#face15">Mémorise ! ${s}</b>`; $("gstat").textContent = s;
+  F.gStop();
+  const tick = () => { s--; if (s <= 0) { w.classList.remove("peek"); ask.innerHTML = `<b>Replace les légendes</b>`; Sound.SFX.swoosh && Sound.SFX.swoosh(); if (FS.t0) timerHead(FS.t0); after(); return; }
+    ask.innerHTML = `<b style="background:#face15">Mémorise ! ${s}</b>`; $("gstat").textContent = s; later(tick, 1000); };
+  later(tick, 1000);
+}
+function fsSel(kind, el){ gameEl.querySelectorAll(".lgimg .msk.sel, #fsChips .sel").forEach(x => x.classList.remove("sel")); FS.sel = el ? { kind, el } : null; if (el) el.classList.add("sel"); }
+function fsTry(chip, mask){
+  fsSel(null);
+  if (chip.dataset.l === mask.dataset.l) {
+    gameEl.querySelectorAll(".lgimg .msk").forEach(m => { if (m.dataset.l === chip.dataset.l) m.classList.add("open"); });
+    chip.remove(); FS.found++; $("fsN").textContent = FS.found; yes(FS.found);
+    if (FS.found === FS.labels.length) fsDone();
+  } else { FS.errs++; $("fsE").textContent = FS.errs; shake(chip); shake(mask); no(); }
+}
+function fsDone(){
+  FS.done = true; F.gStop();
+  const sec = Math.round((Date.now() - FS.t0) / 1000 + FS.reflash * 5), g = GR(); g.flash = g.flash || {};
+  const prev = g.flash[FS.c.img], rec = !prev || sec < prev; if (rec) g.flash[FS.c.img] = sec;
+  srsApply(FS.c, FS.errs === 0 && !FS.reflash ? 2 : FS.errs >= 3 ? 0 : 1); save(); updateHud(); if (rec) confetti(80);
+  $("gstat").textContent = F.fmtT(sec); $("fsAsk").innerHTML = `<b>Bravo !</b>`;
+  const ag = gameEl.querySelector('[data-fs="again"]'); if (ag) ag.remove();
+  $("fsEnd").innerHTML = `<div class="atl-s" style="text-align:center;margin-top:10px"><b style="color:#fff;font-size:17px">${F.fmtT(sec)}</b> · ${FS.errs ? FS.errs + " erreur" + (FS.errs > 1 ? "s" : "") : "sans faute"}${FS.reflash ? " · " + FS.reflash + " flash en plus" : ""}${rec ? ` · <b style="color:#face15">record</b>` : prev ? ` · record ${F.fmtT(prev)}` : ""}</div>`
+    + doneBtns(`<button data-fs="same">Refaire</button>`, `<button class="main" data-fs="next">Schéma suivant</button>`);
+}
+
+/* =====================================================================
+   15. MOTS CROISÉS (notions de tes cours, définitions en indices)
+   ===================================================================== */
+const CW = {};
+const cwKey = w => F.fold(w).toUpperCase().replace(/[^A-Z]/g, "");
+function cwPool(){
+  const seen = new Set();
+  return termPool().filter(t => !/ et /i.test(t.w)).map(t => ({ ...t, ans:cwKey(t.w.replace(/^(les?|la|l')\s*/i, "")) })).filter(t => t.ans.length >= 4 && t.ans.length <= 12 && !seen.has(t.ans) && seen.add(t.ans));
+}
+function cwBuild(items){
+  let best = null;
+  for (let att = 0; att < 60; att++) {
+    const cand = shuffle(items.slice()).slice(0, 18).sort((a, b) => b.ans.length - a.ans.length + (Math.random() - .5) * 3);
+    if (cand[0].ans.length > 11) cand.push(cand.shift());   // on démarre par un mot moyen : grille plus compacte
+    const cells = new Map(), placed = [];
+    const put = (it, x, y, d) => { for (let k = 0; k < it.ans.length; k++) { const key = (x + (d ? 0 : k)) + "," + (y + (d ? k : 0)); const c = cells.get(key) || { L:it.ans[k], dirs:new Set() }; c.dirs.add(d); cells.set(key, c); } placed.push({ ...it, x, y, d }); };
+    const fits = (w, x, y, d) => {
+      const dx = d ? 0 : 1, dy = d ? 1 : 0; let inter = 0;
+      if (cells.has((x - dx) + "," + (y - dy)) || cells.has((x + dx * w.length) + "," + (y + dy * w.length))) return -1;
+      for (let k = 0; k < w.length; k++) {
+        const cx = x + dx * k, cy = y + dy * k, c = cells.get(cx + "," + cy);
+        if (c) { if (c.L !== w[k] || c.dirs.has(d)) return -1; inter++; }
+        else if (cells.has((cx + dy) + "," + (cy + dx)) || cells.has((cx - dy) + "," + (cy - dx))) return -1;
+      }
+      return inter;
+    };
+    put(cand[0], 0, 0, 0);
+    for (const it of cand.slice(1)) {
+      if (placed.length >= 7) break;
+      let opts = [];
+      cells.forEach((c, key) => { const [cx, cy] = key.split(",").map(Number);
+        for (let i = 0; i < it.ans.length; i++) if (it.ans[i] === c.L) for (const d of [0, 1]) { if (c.dirs.has(d)) continue;
+          const x = d ? cx : cx - i, y = d ? cy - i : cy, n = fits(it.ans, x, y, d); if (n > 0) opts.push({ x, y, d, n }); } });
+      if (opts.length) {
+        // la grille la plus compacte possible (avec le plus de croisements)
+        const xs0 = [...cells.keys()].map(k => +k.split(",")[0]), ys0 = [...cells.keys()].map(k => +k.split(",")[1]);
+        const area = o => { const x2 = o.x + (o.d ? 0 : it.ans.length - 1), y2 = o.y + (o.d ? it.ans.length - 1 : 0);
+          const w = Math.max(...xs0, x2) - Math.min(...xs0, o.x) + 1, h = Math.max(...ys0, y2) - Math.min(...ys0, o.y) + 1; return Math.max(w, h) * 4 + w * h / 10 - o.n * 6; };
+        opts.sort((a, b) => area(a) - area(b));
+        const o = pick(opts.slice(0, 2)); put(it, o.x, o.y, o.d);
+      }
+    }
+    const xs = [...cells.keys()].map(k => +k.split(",")[0]), ys = [...cells.keys()].map(k => +k.split(",")[1]);
+    const W = Math.max(...xs) - Math.min(...xs) + 1, H = Math.max(...ys) - Math.min(...ys) + 1;
+    const score = placed.length * 10 - Math.max(W, H) * 0.6;
+    const fitsScreen = W <= 13 && H <= 15;
+    if ((!best || (fitsScreen && !best.fit) || (fitsScreen === best.fit && score > best.score)) && placed.length >= 4) best = { placed, cells, minX:Math.min(...xs), minY:Math.min(...ys), W, H, score, fit:fitsScreen };
+  }
+  return best;
+}
+function startCroises(){
+  F.gStop();
+  const pool = cwPool(); if (pool.length < 6) { toast("Pas assez de notions ici : choisis « Tout »"); return F.closeGame(true); }
+  const L = cwBuild(pool); if (!L || L.placed.length < 4) { toast("Grille impossible ici, réessaie"); return F.closeGame(true); }
+  L.placed.forEach(p => { p.x -= L.minX; p.y -= L.minY; });
+  const starts = [...new Set(L.placed.map(p => p.y * 100 + p.x))].sort((a, b) => a - b);
+  L.placed.forEach(p => { p.num = starts.indexOf(p.y * 100 + p.x) + 1; p.found = false; p.hint = 0; });
+  Object.assign(CW, { L, sel:null, t0:Date.now(), hints:0, errs:[], gave:0 });
+  cwRender(); timerHead(CW.t0);
+  setH((e, b) => {
+    const cell = e.target.closest(".cwc[data-xy]");
+    if (cell) { const [x, y] = cell.dataset.xy.split(",").map(Number); const ws = CW.L.placed.filter(p => !p.found && cwHas(p, x, y)); if (ws.length) { const i = ws.indexOf(CW.sel); cwSelect(ws[(i + 1) % ws.length]); } return; }
+    if (!b) return;
+    if (b.dataset.cw !== undefined) { cwSelect(CW.L.placed[+b.dataset.cw]); return; }
+    if (b.dataset.cwa === "go") cwGo();
+    else if (b.dataset.cwa === "hint") cwHint();
+    else if (b.dataset.cwa === "give") cwGive();
+  });
+  GT.keys = e => { if (e.key === "Enter" && $("cwIn")) { e.preventDefault(); cwGo(); return true; } return false; };
+}
+const cwHas = (p, x, y) => p.d ? (x === p.x && y >= p.y && y < p.y + p.ans.length) : (y === p.y && x >= p.x && x < p.x + p.ans.length);
+function cwRender(){
+  const L = CW.L, grid = [];
+  for (let y = 0; y < L.H; y++) for (let x = 0; x < L.W; x++) {
+    const ws = L.placed.filter(p => cwHas(p, x, y));
+    if (!ws.length) { grid.push(`<div class="cwc empty"></div>`); continue; }
+    const num = L.placed.find(p => p.x === x && p.y === y), shown = ws.find(p => p.found) || ws.find(p => p.hint > (p.d ? y - p.y : x - p.x));
+    const letter = shown ? shown.ans[shown.d ? y - shown.y : x - shown.x] : "";
+    const sel = CW.sel && cwHas(CW.sel, x, y);
+    grid.push(`<div class="cwc${ws.some(p => p.found) ? " ok" : ""}${sel ? " sel" : ""}" data-xy="${x},${y}">${num ? `<i>${num.num}</i>` : ""}${letter}</div>`);
+  }
+  const clues = d => L.placed.map((p, i) => [p, i]).filter(([p]) => p.d === d).sort((a, b) => a[0].num - b[0].num)
+    .map(([p, i]) => `<button data-cw="${i}" class="${p.found ? "done" : ""}${CW.sel === p ? " sel" : ""}"><b>${p.num}.</b> ${prep(p.clue)} <small>(${p.ans.length})</small></button>`).join("");
+  const found = L.placed.filter(p => p.found).length;
+  gameEl.innerHTML = head("Mots croisés", scopeName(), $("gstat") ? $("gstat").textContent : "0:00") + `<div class="gbody">
+    <div class="atl-row"><span>Trouvés <b>${found}</b>/${L.placed.length}</span><span>Indices <b>${CW.hints}</b></span></div>
+    <div class="atl-scroll"><div class="cwgrid" style="--cs:calc((min(100vw - 40px, ${L.W * 31}px) - ${(L.W - 1) * 2}px) / ${L.W});grid-template-columns:repeat(${L.W},var(--cs));grid-auto-rows:var(--cs)">${grid.join("")}</div>
+    ${CW.sel && !CW.sel.found ? `<div class="cwask"><div class="atl-s" style="margin:0 0 6px"><b style="color:#fff">${CW.sel.num} ${CW.sel.d ? "vertical" : "horizontal"}</b> · ${CW.sel.ans.length} lettres</div>
+      <input id="cwIn" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go" placeholder="Ta réponse">
+      <div class="tpbtns"><button data-cwa="give">Je sèche</button><button data-cwa="hint">Une lettre</button><button class="main" data-cwa="go">Valider</button></div></div>` : `<div class="atl-s" style="text-align:center;margin:12px 0">Touche une définition ou une case.</div>`}
+    <div class="cwclues"><div class="sect">Horizontalement</div>${clues(0)}<div class="sect">Verticalement</div>${clues(1)}</div></div></div>`;
+  math(gameEl);
+}
+function cwSelect(p){ if (!p || p.found) return; CW.sel = p; Sound.SFX.tap(); cwRender(); const i = $("cwIn"); if (i) { i.focus(); i.closest(".cwask").scrollIntoView({ block:"center", behavior:"smooth" }); } }
+function cwGo(){
+  const p = CW.sel, inp = $("cwIn"); if (!p || !inp) return;
+  const a = cwKey(inp.value); if (!a) return;
+  if (a === p.ans || (p.ans.length >= 8 && lev(a, p.ans) <= 1)) { p.found = true; yes(); cwAfter(); }
+  else { shake(inp); no(); }
+}
+function cwHint(){ const p = CW.sel; if (!p) return; p.hint = Math.min(p.ans.length, p.hint + 1); CW.hints++; Sound.SFX.tap(); if (p.hint >= p.ans.length) { p.found = true; CW.errs.push({ c:p.c, t:`<b>${esc(p.w)}</b>`, why:p.clue }); cwAfter(); } else { cwRender(); const i = $("cwIn"); if (i) i.focus(); } }
+function cwGive(){ const p = CW.sel; if (!p) return; p.found = true; CW.gave++; CW.errs.push({ c:p.c, t:`<b>${esc(p.w)}</b>`, why:p.clue }); no(); cwAfter(); }
+function cwAfter(){
+  CW.sel = CW.L.placed.find(p => !p.found && p.num > (CW.sel ? CW.sel.num : 0)) || CW.L.placed.find(p => !p.found) || null;
+  if (!CW.sel) {
+    GT.keys = null;
+    const sec = Math.round((Date.now() - CW.t0) / 1000), g = GR(), perfect = !CW.gave && !CW.hints, isRec = perfect && (!g.croises || sec < g.croises); if (isRec) g.croises = sec;
+    endScreen({ title:"Mots croisés", big:F.fmtT(sec), sub:`${CW.L.placed.length} mots · ${CW.hints} indice${CW.hints > 1 ? "s" : ""}${CW.gave ? " · " + CW.gave + " donné" + (CW.gave > 1 ? "s" : "") : ""}`, isRec, recTxt:g.croises ? "Record sans indice : " + F.fmtT(g.croises) : "", errs:CW.errs, again:startCroises });
+    return;
+  }
+  cwRender(); const i = $("cwIn"); if (i) i.focus();
+}
+
+/* =====================================================================
+   16. BOSS DE COLLE : tous les types d'exercices mélangés contre un boss
+   ===================================================================== */
+const BO = {};
+function bossTarget(){ const x = ccActive().find(y => ALL.some(c => inCC(y, c))); return x ? { x, cards:ALL.filter(c => inCC(x, c)) } : { x:null, cards:scopeCards() }; }
+function startBoss(){
+  F.gStop();
+  const { x, cards } = bossTarget(), set = new Set(cards);
+  const own = it => { const c = cardOf(it); return c ? set.has(c) : false; };
+  Object.assign(BO, { x, cards, set, seq:E.seq.filter(own), grp:E.groupes.filter(x => own(x) && Object.keys(x.g).length >= 2 && Object.values(x.g).some(a => a.length >= 3)), lab:cards.filter(c => c.lab), img:cards.filter(c => c.img),
+    tape:tapePool(cards), quiz:cards.filter(c => quizKinds(c).length), hp:100, lives:3, n:0, streak:0, errs:[], t0:Date.now(), busy:false });
+  if (BO.quiz.length < 5) { toast("Pas assez de cartes pour un boss"); return F.closeGame(true); }
+  gameEl.innerHTML = head("Boss" + (x ? " · " + esc(x.nom) : ""), x ? (x.date - TODAY() ? "J-" + (x.date - TODAY()) : "C'est aujourd'hui") : scopeName(), "0:00") + `<div class="gbody">
+    <div class="bossbar"><div class="bossname">${ic("crown", 18, "#face15")} ${x ? esc(x.nom) : "Le boss"}</div><div class="hp"><i id="boHp" style="width:100%"></i></div>
+      <div class="bossrow"><span class="svlives" id="boLives">${[0, 1, 2].map(k => F.HEART(true)).join("")}</span><span id="boMsg"></span></div></div>
+    <div class="atl-scroll" id="boBox"></div></div>`;
+  timerHead(BO.t0); boNext();
+  setH((e, b) => boClick(e, b));
+  GT.keys = e => { if (e.key === "Enter" && $("boIn")) { e.preventDefault(); boTape(); return true; } return false; };
+}
+function boNext(){
+  if (BO.hp <= 0 || BO.lives <= 0) return boEnd();
+  BO.n++; BO.busy = false; BO.kind = null;
+  const kinds = ["quiz", "quiz", "quiz"];
+  if (BO.seq.length) kinds.push("apres", "ordre"); if (BO.grp.length) kinds.push("intrus"); if (BO.lab.length) kinds.push("montre", "montre");
+  if (BO.img.length >= 2) kinds.push("schema"); if (BO.tape.length) kinds.push("tape", "tape");
+  let k = pick(kinds); if (k === BO.last && Math.random() < .7) k = pick(kinds); BO.last = k; BO.kind = k;
+  const box = $("boBox");
+  if (k === "quiz") { const c = pick(BO.quiz), it = makeQuiz(c); if (!it) return boNext(); BO.it = it; box.innerHTML = quizInner(it); }
+  else if (k === "apres") { const x = pick(BO.seq), i = Math.random() * (x.etapes.length - 1) | 0, good = x.etapes[i + 1];
+    const wrong = shuffle([...x.etapes.slice(i + 2), ...E.seq.filter(y => y !== x && y.matiere === x.matiere).flatMap(y => y.etapes)]).filter(s => s !== good && !x.etapes.slice(0, i + 1).includes(s));
+    BO.it = { x, i, good }; box.innerHTML = `<div class="atl-t">Et après ?</div><div class="atl-s">${esc(x.titre)}</div><div class="apchain"><div class="fbox">${esc(x.etapes[i])}</div><div class="farr">↓</div><div class="fbox q">?</div></div>
+      <div class="apopts">${shuffle([{ t:good, ok:1 }, ...[...new Set(wrong)].slice(0, 2).map(t => ({ t, ok:0 }))]).map(o => `<button data-bo="${o.ok}">${esc(o.t)}</button>`).join("")}</div>`; }
+  else if (k === "ordre") { const x = pick(BO.seq.filter(s => s.etapes.length <= 6)) || pick(BO.seq); BO.it = { x, pos:0, faute:false };
+    box.innerHTML = `<div class="atl-t">Remets dans l'ordre</div><div class="atl-s">${esc(x.titre)}</div><div class="ord-placed" id="boPlaced"></div><div class="ord-pool">${shuffle(x.etapes.map((_, j) => j)).map(j => `<button data-boi="${j}">${esc(x.etapes[j])}</button>`).join("")}</div>`; }
+  else if (k === "intrus") { const x = pick(BO.grp), cats = Object.keys(x.g), A = pick(cats.filter(c => x.g[c].length >= 3)), B = pick(cats.filter(c => c !== A)), intr = pick(x.g[B]);
+    BO.it = { x, A, B, intr }; box.innerHTML = `<div class="atl-t">Trois sont « ${esc(A)} ». L'intrus ?</div><div class="atl-s">${esc(x.titre)}</div><div class="inopts">${shuffle([...shuffle(x.g[A].slice()).slice(0, 3).map(t => ({ t, ok:0 })), { t:intr, ok:1 }]).map(o => `<button data-bo="${o.ok}">${esc(o.t)}</button>`).join("")}</div>`; }
+  else if (k === "montre") { const c = pick(BO.lab), l = pick([...new Set(c.lab.filter(Boolean))]); BO.it = { c, l };
+    box.innerHTML = `<div class="mo-ask">Touche : <br><b>${esc(l)}</b></div><div class="lgimg"><div class="mskwrap" style="--ar:${c.ar || 1.4}"><img src="${esc(c.img)}" alt="">${c.masks.map((r, j) => c.lab[j] ? `<button class="msk" data-l="${esc(c.lab[j])}" style="left:${r[0]}%;top:${r[1]}%;width:${r[2]}%;height:${r[3]}%"></button>` : "").join("")}</div></div><div class="atl-s" style="margin-top:8px">${prep(c.q)}</div>`; }
+  else if (k === "schema") { const c = pick(BO.img), others = shuffle([...new Set(ALL.filter(y => y.img && y.img !== c.img && y.matiere === c.matiere).map(y => y.img))]).slice(0, 3);
+    BO.it = { c }; box.innerHTML = `<div class="atl-t">Où est : ${prep(c.q)} ?</div><div class="bsgrid" style="margin-top:10px">${shuffle([{ i:c.img, ok:1 }, ...others.map(i => ({ i, ok:0 }))]).map(o => `<button data-bo="${o.ok}"><img src="${esc(o.i)}" alt=""></button>`).join("")}</div>`; }
+  else if (k === "tape") { const t = pick(BO.tape); BO.it = t;
+    box.innerHTML = `<div class="atl-t">Écris le mot manquant</div><div class="tpq">${prep(t.txt.replace(CLOZE, '<span class="blank"></span>'))}</div><input id="boIn" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" placeholder="Ta réponse"><div class="tpbtns"><button class="main" data-bot="1">Valider</button></div>`;
+    setTimeout(() => { const i = $("boIn"); if (i) i.focus(); }, 60); }
+  math(box);
+}
+function boClick(e, b){
+  if (!BO.kind) return;
+  if (b && b.dataset.bonext) { boNext(); return; }
+  if (BO.busy) return;
+  const k = BO.kind, box = $("boBox");
+  if (k === "quiz" && b && b.classList.contains("qopt")) { const ok = b.dataset.ans === "1"; box.querySelectorAll(".qopt").forEach(x => { if (x.dataset.ans === "1") x.classList.add("good"); }); if (!ok) b.classList.add("bad");
+    const ex = box.querySelector(".qexp"); if (ex && !ok) ex.hidden = false;
+    const good = BO.it.opts.find(o => o.ok); return boHit(ok, { c:BO.it.c, t:BO.it.vf ? BO.it.prompt : BO.it.kind === "def" ? BO.it.c.q : BO.it.prompt.replace(/<span class="blank">\?<\/span>/, "…"), why:BO.it.vf ? BO.it.explain : "Réponse : <b>" + (good ? good.h : "") + "</b>" }); }
+  if ((k === "apres" || k === "intrus" || k === "schema") && b && b.dataset.bo !== undefined) { const ok = b.dataset.bo === "1"; b.classList.add(ok ? "good" : "bad"); const g = box.querySelector('[data-bo="1"]'); if (g) g.classList.add("good");
+    const err = k === "apres" ? errOf(BO.it.x, esc(BO.it.x.etapes[BO.it.i]) + " → ?", "→ " + esc(BO.it.good)) : k === "intrus" ? errOf(BO.it.x, "Intrus : " + esc(BO.it.intr), esc(BO.it.intr) + " → " + esc(BO.it.B)) : { c:BO.it.c, t:"Le schéma « " + BO.it.c.q + " »" };
+    return boHit(ok, err); }
+  if (k === "ordre" && b && b.dataset.boi !== undefined) { const it = BO.it, j = +b.dataset.boi;
+    if (j === it.pos) { const d = document.createElement("div"); d.innerHTML = `<i>${j + 1}</i><span>${esc(it.x.etapes[j])}</span>`; $("boPlaced").appendChild(d); b.remove(); it.pos++; Sound.SFX.tap(); if (it.pos === it.x.etapes.length) return boHit(!it.faute, errOf(it.x, it.x.titre, it.x.etapes.join(" → ")), true); }
+    else { shake(b); no(); if (!it.faute) { it.faute = true; BO.lives--; boLivesDraw(); if (BO.lives <= 0) return boHit(false, errOf(it.x, it.x.titre, it.x.etapes.join(" → ")), true, true); } }
+    return; }
+  if (k === "montre") { const wrap = e.target.closest(".mskwrap"); if (!wrap) return; const m = e.target.closest(".msk") || P.nearestMask(wrap, e); if (!m) return;
+    const ok = m.dataset.l === BO.it.l; gameEl.querySelectorAll(".lgimg .msk").forEach(x => { if (x.dataset.l === BO.it.l) x.classList.add("hit"); }); if (!ok) shake(m);
+    return boHit(ok, { c:BO.it.c, t:"Sur « " + BO.it.c.q + " » : " + esc(BO.it.l) }); }
+  if (k === "tape" && b && b.dataset.bot) return boTape();
+}
+function boTape(){
+  if (BO.busy || BO.kind !== "tape") return;
+  const inp = $("boIn"), a = norm(inp.value), want = norm(BO.it.ans); if (!a) return;
+  const tol = want.length <= 4 ? 0 : want.length <= 8 ? 1 : 2, ok = a === want || lev(a, want) <= tol;
+  inp.classList.add(ok ? "good" : "bad"); if (!ok) $("boBox").insertAdjacentHTML("beforeend", `<div class="tpres"><b class="r">Raté.</b> La réponse : <b>${esc(BO.it.ans)}</b></div>`);
+  boHit(ok, { c:BO.it.c, t:BO.it.txt.replace(CLOZE, `<b>${esc(BO.it.ans)}</b>`) });
+}
+function boHit(ok, err, big, livesDone){
+  BO.busy = true;
+  if (ok) { BO.streak++; const dmg = (big ? 14 : 9) + (BO.streak >= 3 ? 5 : 0); BO.hp = Math.max(0, BO.hp - dmg); yes(BO.streak);
+    $("boMsg").innerHTML = BO.streak >= 3 ? `<b style="color:#face15">COUP CRITIQUE −${dmg}</b>` : `<b style="color:#2fd27a">−${dmg} PV</b>`;
+    const bar = $("boHp"); bar.style.width = BO.hp + "%"; bar.parentElement.classList.remove("hit"); void bar.offsetWidth; bar.parentElement.classList.add("hit"); }
+  else { BO.streak = 0; if (!livesDone && !(BO.kind === "ordre")) BO.lives--; boLivesDraw(); no(); BO.errs.push(err); $("boMsg").innerHTML = `<b style="color:#ff6b8a">Le boss te frappe</b>`; }
+  $("boBox").insertAdjacentHTML("beforeend", `<div class="gdone"><div class="gbtns"><button class="main" data-bonext="1">${BO.hp <= 0 ? "Coup final !" : BO.lives <= 0 ? "Résultat" : "Suivant"}</button></div></div>`);
+  if (BO.hp <= 0 || BO.lives <= 0) later(boEnd, 1400);
+}
+function boLivesDraw(){ const el = $("boLives"); if (el) el.innerHTML = [0, 1, 2].map(k => F.HEART(k < BO.lives)).join(""); }
+function boEnd(){
+  if (BO.ended === BO.t0) return; BO.ended = BO.t0; GT.keys = null;
+  const win = BO.hp <= 0, sec = Math.round((Date.now() - BO.t0) / 1000), g = GR();
+  const isRec = win && (!g.boss || sec < g.boss); if (isRec) g.boss = sec;
+  if (win) confetti(160);
+  endScreen({ title:"Boss" + (BO.x ? " · " + BO.x.nom : ""), big:win ? "Vaincu !" : BO.hp + " PV", sub:win ? `en ${F.fmtT(sec)} · ${BO.n} questions` : "Il reste " + BO.hp + " PV au boss. Revois tes erreurs et reviens.", isRec, recTxt:g.boss ? "Record : boss vaincu en " + F.fmtT(g.boss) : "", errs:BO.errs, again:startBoss });
+}
+
+/* =====================================================================
    REGISTRE (page Jeux)
    ===================================================================== */
 const R = F.register;
 R({ k:"stories", sec:"apprendre", icon:"play", col:"#ff7a1a", name:"Stories de séance", desc:"Les notions clés d'une séance en stories, avant de jouer.", ok:cs => cs.length >= 2, start:startStories, noSurprise:true });
+R({ k:"mindmap", sec:"apprendre", icon:"compass", col:"#13a35a", name:"Carte mentale", desc:"Toute une séance en une carte. Le mode quiz cache les détails, à toi de les retrouver.", ok:cs => cs.length >= 2, start:startMindmap, noSurprise:true });
+R({ k:"boss", sec:"boss", icon:"crown", col:"#c9a400", name:"Boss de colle", desc:"Tous les types d'exercices mélangés contre un boss à 100 PV. Tu as 3 vies.",
+  rec:g => g.boss ? "Record : vaincu en " + F.fmtT(g.boss) : "", ok:() => ALL.length >= 5, start:startBoss, count:() => { const t = bossTarget(); return t.x ? "Sur « " + esc(t.x.nom) + " »" : "Sur ta sélection"; } });
+R({ k:"flash", sec:"schemas", icon:"zap", col:"#face15", name:"Flash 3 secondes", desc:"Le schéma s'affiche 3 secondes, puis tu replaces les légendes de mémoire.",
+  rec:g => { const n = Object.keys(g.flash || {}).length; return n ? n + " schéma" + (n > 1 ? "s" : "") + " réussi" + (n > 1 ? "s" : "") : ""; }, ok:() => ALL.some(c => c.lab), start:startFlash });
+R({ k:"croises", sec:"jouer", icon:"pen", col:"#ff2d87", name:"Mots croisés", desc:"Une grille avec les notions de tes cours, les définitions en indices.",
+  rec:g => g.croises ? "Record sans indice : " + F.fmtT(g.croises) : "", ok:() => cwPool().length >= 6, start:startCroises });
 R({ k:"montre", sec:"schemas", icon:"target", col:"#25b8ee", name:"Montre-moi", desc:"« Touche le glomérule » : trouve chaque structure sur le schéma, sans légende.",
   rec:g => { const n = Object.keys(g.montre || {}).length; return n ? n + " schéma" + (n > 1 ? "s" : "") + " réussi" + (n > 1 ? "s" : "") : ""; }, ok:() => ALL.some(c => c.lab), start:startMontre });
 R({ k:"bonschema", sec:"schemas", icon:"image", col:"#0a7cff", name:"Le bon schéma", desc:"4 schémas de tes cours : lequel est celui qu'on te demande ?",
@@ -700,6 +1043,7 @@ window.exoSlide = function(it, i){
     <button class="xgo" data-exogo="${it.id}">C'est parti</button></div></div>
     <div class="bar"><i style="width:${((i + 1) / list.length * 100).toFixed(1)}%"></i></div></section>`;
 };
+window.FT_ATL = { cwPool:() => cwPool(), cwBuild:it => cwBuild(it), termPool:() => termPool() };   // pour les tests
 window.exoClick = function(e){
   const s = e.target.closest(".slide[data-exo]"); if (!s) return false;
   const b = e.target.closest("[data-exogo]");

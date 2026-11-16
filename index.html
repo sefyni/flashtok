@@ -846,11 +846,12 @@ function maskTerm(a, q){
 }
 // « C'est quoi ? » : seulement la première phrase de la définition, si elle est courte
 function shortDef(a){
-  let t = String(a || "").split(/<p>|<br\s*\/?>/i)[0];
+  let t = String(a || "").split(/<p>|<br\s*\/?>/i)[0].replace(/\b(ex|cf|etc|env|vs|resp)\.(\s)/gi, "$1\u0007$2");   // « ex. » ne termine pas la phrase
   const m = t.match(/^((?:[^$.]|\$[^$]*\$|\.(?=\S))*?\.)(\s|$)/);   // jusqu'au premier point (hors formules)
   if (m) t = m[1];
   const len = plain(t).length;
   if (len > 150) { const c2 = t.search(/ : | ; |, (?=[a-zà-ÿ]{3,} )/); if (c2 > 40 && plain(t.slice(0, c2)).length <= 150) t = t.slice(0, c2); else return null; }
+  t = t.replace(/\u0007/g, ".");
   const pt = plain(t).trim();
   if (/^(•|\d+\s*[).]|[-–])/.test(pt) || /:\s*$/.test(pt)) return null;      // un morceau de liste, pas une définition
   return pt.length >= 18 ? t : null;

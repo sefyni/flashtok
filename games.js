@@ -385,7 +385,7 @@ function svEnd(){
    MENU DES JEUX (registre : d'autres fichiers peuvent ajouter des jeux)
    ===================================================================== */
 const REG = [];
-const SECTIONS = [["apprendre", "Apprendre"], ["schemas", "Reconstruire les schémas"], ["jouer", "Jouer"]];
+const SECTIONS = [["apprendre", "Apprendre"], ["boss", "Avant la colle"], ["schemas", "Reconstruire les schémas"], ["jouer", "Jouer"]];
 function register(def){ REG.push(def); }
 register({ k:"swipe", sec:"jouer", icon:"zap", col:"#fe2c55", name:"Swipe chrono", desc:"Vrai à droite, faux à gauche. 60 s, +2 s par bonne réponse, −3 s par erreur.",
   rec:g => g.swipe ? "Record : " + g.swipe : "", ok:cs => P.stmtPool(cs).length >= 6, start:startSwipe });
