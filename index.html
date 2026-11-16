@@ -489,6 +489,7 @@
 <div class="page" id="pgQcm"></div>
 <!-- Jeux -->
 <div class="page" id="pgJeux"></div>
+<div class="page" id="pgMots"></div>
 <div class="overlay" id="game"></div>
 <!-- Mode écoute -->
 <div class="overlay" id="listen"></div>
@@ -524,6 +525,7 @@
 <nav id="nav">
   <button data-nav="home" class="on"><svg class="ic i" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 2.5 11h2.7v9.5h5.3v-6h3v6h5.3V11h2.7z"/></svg>Accueil</button>
   <button data-nav="mat"><svg class="ic i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>Matières</button>
+  <button data-nav="mots"><svg class="ic i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19V6a2 2 0 0 1 2-2h13v15H6a2 2 0 0 0-2 2v0a2 2 0 0 0 2 2h13"/><path d="M8.5 13 11 7l2.5 6M9.3 11h3.4"/></svg>Mots</button>
   <button data-nav="hub" class="plus" aria-label="Réviser"><div class="plusbtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg></div></button>
   <button data-nav="revoir"><svg class="ic i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3h12v18l-6-4.5L6 21z"/></svg>À revoir<span class="badge" id="koBadge" hidden></span></button>
   <button data-nav="prof"><svg class="ic i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.5 4.5-6.5 8-6.5s7 2 8 6.5"/></svg>Profil</button>
@@ -1259,13 +1261,13 @@ function openFeedFor(name){
 /* =====================================================================
    PAGES
    ===================================================================== */
-const pages = { mat:"pgMat", add:"pgAdd", prof:"pgProf", defis:"pgDefis", exam:"pgExam", serie:"pgSerie", shop:"pgShop", cc:"pgCC", hub:"pgHub", plan:"pgPlan", qcm:"pgQcm", jeux:"pgJeux" };
+const pages = { mat:"pgMat", add:"pgAdd", prof:"pgProf", defis:"pgDefis", exam:"pgExam", serie:"pgSerie", shop:"pgShop", cc:"pgCC", hub:"pgHub", plan:"pgPlan", qcm:"pgQcm", jeux:"pgJeux", mots:"pgMots" };
 function setNav(n){ document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.nav === n)); }
 function hidePages(){ Object.values(pages).forEach(p => $(p).classList.remove("show")); $("top").style.display = ""; }
 function openPage(n){
   hidePages(); closeAcct(); setNav(n); $("top").style.display = "none";
   ({ mat:renderMat, prof:renderProf, add:fillAddForm, defis:renderDefis, exam:renderExamSetup, serie:renderSerie, shop:renderShop, cc:renderCC,
-     hub:() => renderHub(), plan:() => renderPlan(), qcm:() => renderQcmSetup(), jeux:() => renderJeux() })[n]();
+     hub:() => renderHub(), plan:() => renderPlan(), qcm:() => renderQcmSetup(), jeux:() => renderJeux(), mots:() => renderMots() })[n]();
   $(pages[n]).classList.add("show"); $(pages[n]).scrollTop = 0;
 }
 $("nav").addEventListener("click", e => {

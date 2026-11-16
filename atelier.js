@@ -50,6 +50,14 @@ document.head.insertAdjacentHTML("beforeend", `<style>
   .wdw { font-size:30px; font-weight:900; line-height:1.15; margin:10px 0 6px; }
   .wdopts button { display:block; width:100%; text-align:left; background:#161616; border:2px solid #262626; border-radius:14px; padding:14px; margin-bottom:9px; font-size:15px; font-weight:700; line-height:1.35; }
   .wdopts button.ok { background:#0f3324; border-color:#2fd27a; color:#bff3d6; } .wdopts button.ko { background:#3a1018; border-color:#fe2c55; color:#ffc2cd; }
+  #pgMots .mtwrap { padding:calc(var(--st) + 14px) 16px 120px; }
+  .mthead { display:flex; justify-content:space-between; align-items:baseline; } .mthead b { font-size:26px; font-weight:900; } .mthead span { color:var(--muted); font-weight:700; }
+  .mtbar { height:6px; background:#1d1d1d; border-radius:3px; overflow:hidden; margin:10px 0 14px; } .mtbar i { display:block; height:100%; background:#2fd27a; }
+  .mtgo { width:100%; padding:16px; border-radius:16px; background:var(--red); font-weight:900; font-size:17px; margin-bottom:6px; }
+  .mtchips button { font-size:13px; padding:8px 12px; }
+  .mtrow { display:block; width:100%; text-align:left; background:#141414; border-radius:12px; padding:12px 14px; margin-bottom:6px; border-left:4px solid #333; }
+  .mtrow.ok { border-left-color:#2fd27a; } .mtrow.ko { border-left-color:#fe2c55; } .mtrow.mid { border-left-color:#face15; }
+  .mtw { display:block; font-weight:800; font-size:15px; } .mtd { display:none; color:#bbb; font-size:13.5px; line-height:1.4; margin-top:4px; } .mtrow.open .mtd { display:block; }
   .tlrow { display:flex; width:100%; align-items:center; gap:10px; justify-content:space-between; text-align:left; background:#141414; border-radius:14px; padding:12px 14px; margin-bottom:8px; font-weight:800; font-size:15px; }
   .tlrow small { display:block; color:var(--muted); font-weight:600; font-size:12px; margin-top:2px; }
   .tlb { flex:none; font-size:11px; font-weight:800; padding:4px 8px; border-radius:999px; background:#222; color:#aaa; } .tlb.ok { background:#0f3324; color:#7ee2a8; } .tlb.ko { background:#3a1018; color:#ff8fa3; }
@@ -361,10 +369,10 @@ function tbEnd(){
 /* ---------- MOTS : un mot, choisis sa définition ---------- */
 const WD = {};
 const wKey = x => F.fold(x.w).toLowerCase();
-function wordPool(){ return (E.vocab || []).filter(inScope); }
+function wordPool(){ return WD.fromTab ? (E.vocab || []).filter(mtFilter()) : (E.vocab || []).filter(inScope); }
 function wStat(x){ const v = S.vocab || (S.vocab = {}); return v[wKey(x)] || (v[wKey(x)] = { ok:0, ko:0 }); }
-function startMots(){
-  F.gStop();
+function startMots(fromTab){
+  F.gStop(); WD.fromTab = fromTab === true;
   const pool = wordPool();
   if (pool.length < 4) { toast("Pas assez de mots ici : choisis « Tout »"); return F.closeGame(true); }
   const score = x => { const s = wStat(x); return (s.ko - s.ok) * 2 + (s.ok + s.ko === 0 ? 1 : 0) + Math.random() * 1.5; };
@@ -400,8 +408,41 @@ function wdRound(){
 function wdEnd(){
   const g = GR(), first = WD.n, isRec = WD.ok > (g.mots || 0) && WD.n >= 10; if (isRec) g.mots = WD.ok;
   const known = (E.vocab || []).filter(x => { const s = (S.vocab || {})[wKey(x)]; return s && s.ok > s.ko && s.ok >= 2; }).length;
-  endScreen({ title:"Mots", big:WD.ok + "/" + WD.q.length, sub:`bonnes réponses · ${known}/${(E.vocab || []).length} mots bien connus`, isRec, recTxt:"", errs:WD.errs, again:startMots });
+  endScreen({ title:"Mots", big:WD.ok + "/" + WD.q.length, sub:`bonnes réponses · ${known}/${(E.vocab || []).length} mots bien connus`, isRec, recTxt:"", errs:WD.errs, again:() => startMots(WD.fromTab) });
 }
+
+
+/* ---------- ONGLET MOTS ---------- */
+const MT_KEY = x => x.matiere + "|" + x.chapitre;
+function mtGroups(){ const seen = new Map(); (E.vocab || []).forEach(x => { const k = MT_KEY(x); if (!seen.has(k)) seen.set(k, { k, m:x.matiere, ch:x.chapitre, n:0 }); seen.get(k).n++; }); const ord = []; MATIERES.forEach(m => (m.chapitres || []).forEach(ch => ord.push(m.nom + "|" + ch))); return [...seen.values()].sort((x, y) => ord.indexOf(x.k) - ord.indexOf(y.k)); }
+function mtFilter(){ const k = S.motsF || "all"; return x => k === "all" || MT_KEY(x) === k || (k.startsWith("m:") && x.matiere === k.slice(2)); }
+const mtState = x => { const s = (S.vocab || {})[wKey(x)]; if (!s || s.ok + s.ko === 0) return "new"; return s.ok > s.ko && s.ok >= 2 ? "ok" : s.ko > 0 && s.ko >= s.ok ? "ko" : "mid"; };
+window.renderMots = function(){
+  const all = E.vocab || [], f = mtFilter(), list = all.filter(f), k = S.motsF || "all";
+  const cnt = st => list.filter(x => mtState(x) === st).length;
+  const mats = [...new Set(all.map(x => x.matiere))];
+  const chips = [`<button data-mf="all" class="${k === "all" ? "on" : ""}">Tout</button>`]
+    .concat(mats.map(m => `<button data-mf="m:${esc(m)}" class="${k === "m:" + m ? "on" : ""}">${esc(m)}</button>`))
+    .concat(mtGroups().map(g => `<button data-mf="${esc(g.k)}" class="${k === g.k ? "on" : ""}">${esc(g.m === "Physiologie" ? "Physio" : g.m === "Histologie" ? "Histo" : g.m)} ${esc(P.chLabel(g.ch).split(" ·")[0] || g.ch)}</button>`)).join("");
+  const filt = S.motsShow || "all";
+  const shown = list.filter(x => filt === "all" || mtState(x) === filt).sort((a, b) => a.w.localeCompare(b.w, "fr"));
+  $("pgMots").innerHTML = `<div class="mtwrap">
+    <div class="mthead"><b>Mots</b><span>${cnt("ok")}/${list.length} connus</span></div>
+    <div class="mtbar"><i style="width:${list.length ? cnt("ok") / list.length * 100 : 0}%"></i></div>
+    <button class="mtgo" data-mt="go">C'est parti · ${Math.min(15, list.length)} mots</button>
+    <div class="sect">Sur quoi</div><div class="chips mtchips">${chips}</div>
+    <div class="sect">Tous les mots · touche pour voir la définition</div>
+    <div class="chips mtchips" style="margin-bottom:10px">${[["all", "Tous " + list.length], ["ko", "À retravailler " + cnt("ko")], ["new", "Jamais vus " + cnt("new")], ["ok", "Connus " + cnt("ok")]].map(([v, t]) => `<button data-ms="${v}" class="${filt === v ? "on" : ""}">${t}</button>`).join("")}</div>
+    ${shown.map(x => `<button class="mtrow ${mtState(x)}" data-mw="${esc(x.w)}"><span class="mtw">${esc(x.w)}</span><span class="mtd">${esc(x.d)}</span></button>`).join("") || `<div class="atl-s">Aucun mot ici.</div>`}
+  </div>`;
+};
+$("pgMots").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.mt === "go") { Sound.SFX.tap(); openGame("mots", true); return; }
+  if (b.dataset.mf) { S.motsF = b.dataset.mf; save(); Sound.SFX.tap(); renderMots(); return; }
+  if (b.dataset.ms) { S.motsShow = b.dataset.ms; save(); Sound.SFX.tap(); renderMots(); return; }
+  if (b.dataset.mw !== undefined) { b.classList.toggle("open"); Sound.SFX.tap(); }
+});
 
 /* ---------- MES TABLEAUX : tous les tableaux de tes cours, à remplir un par un ---------- */
 const tlAll = () => { const order = []; MATIERES.forEach(m => (m.chapitres || []).forEach(ch => order.push(m.nom + "|" + ch)));

@@ -421,7 +421,7 @@ function openGame(k, arg){
   d.start(arg);
 }
 window.openGame = openGame;
-function closeGame(silent){ gStop(); GT.handler = null; GT.keys = null; gameEl.classList.remove("story"); gameEl.classList.remove("show"); gameEl.innerHTML = ""; if (!silent) renderJeux(); updateHud(); }
+function closeGame(silent){ gStop(); GT.handler = null; GT.keys = null; gameEl.classList.remove("story"); gameEl.classList.remove("show"); gameEl.innerHTML = ""; if (!silent) renderJeux(); const pm = document.getElementById("pgMots"); if (pm && pm.classList.contains("show") && window.renderMots) renderMots(); updateHud(); }
 gameEl.addEventListener("click", e => {
   const b = e.target.closest("button"), g = b && b.dataset.g;
   if (g === "close") {                                   // deux touches pour quitter une partie en cours

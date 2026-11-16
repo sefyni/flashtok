@@ -1,6 +1,6 @@
 // FlashTok — fonctionne hors ligne.
 // Réseau d'abord (pour récupérer tes nouvelles cartes), cache si pas de connexion.
-const CACHE = "flashtok-v27";
+const CACHE = "flashtok-v28";
 const VCACHE = "flashtok-videos";
 const FILES = [
   "./",
