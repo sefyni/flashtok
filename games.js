@@ -203,7 +203,7 @@ function startLegendes(c){
   const labels = shuffle([...new Set(c.lab.filter(Boolean))]);
   Object.assign(LG, { c, t0:Date.now(), errs:0, found:0, total:labels.length, sel:null, done:false });
   const masks = c.masks.map((r, k) => c.lab[k] ? `<button class="msk" data-l="${esc(c.lab[k])}" style="left:${r[0]}%;top:${r[1]}%;width:${r[2]}%;height:${r[3]}%" aria-label="Case ${k + 1}"></button>` : "").join("");
-  gameEl.innerHTML = head("Légendes à placer", "Physiologie · " + esc(P.chLabel(c.chapitre || "")), "0:00") + `<div class="gbody">
+  gameEl.innerHTML = head("Légendes à placer", esc(c.matiere) + " · " + esc(P.chLabel(c.chapitre || "")), "0:00") + `<div class="gbody">
     <div class="lgq">${prep(c.q)} <small style="color:var(--muted);font-weight:600">· <span id="lgN">0</span>/${labels.length} · erreurs <span id="lgE">0</span></small></div>
     <div class="lgimg"><div class="mskwrap" style="--ar:${c.ar || 1.4}"><img src="${esc(c.img)}" alt="">${masks}</div></div>
     <div class="lgchips" id="lgChips">${labels.map(l => `<button data-l="${esc(l)}">${esc(l)}</button>`).join("")}</div>
@@ -381,19 +381,30 @@ function svEnd(){
 /* =====================================================================
    MENU DES JEUX + ÉVÉNEMENTS
    ===================================================================== */
+/* =====================================================================
+   MENU DES JEUX (registre : d'autres fichiers peuvent ajouter des jeux)
+   ===================================================================== */
+const REG = [];
+const SECTIONS = [["apprendre", "Apprendre"], ["schemas", "Reconstruire les schémas"], ["jouer", "Jouer"]];
+function register(def){ REG.push(def); }
+register({ k:"swipe", sec:"jouer", icon:"zap", col:"#fe2c55", name:"Swipe chrono", desc:"Vrai à droite, faux à gauche. 60 s, +2 s par bonne réponse, −3 s par erreur.",
+  rec:g => g.swipe ? "Record : " + g.swipe : "", ok:cs => P.stmtPool(cs).length >= 6, start:startSwipe });
+register({ k:"legende", sec:"schemas", icon:"puzzle", col:"#7b3cff", name:"Légendes à placer", desc:"Touche une étiquette, puis sa place sur le schéma.",
+  rec:g => { const n = Object.keys(g.leg || {}).length; return n ? n + " schéma" + (n > 1 ? "s" : "") + " réussi" + (n > 1 ? "s" : "") : ""; }, ok:() => legCards().length > 0, start:() => startLegendes(), count:() => legCards().length + " schémas" });
+register({ k:"paires", sec:"jouer", icon:"copy", col:"#0a7cff", name:"Paires", desc:"Relie chaque phrase à son mot manquant. 3 manches de 5, le plus vite possible.",
+  rec:g => g.paires ? "Record : " + fmtT(g.paires) : "", ok:() => new Set(paPool().map(p => fold(p.ans))).size >= 5, start:startPaires });
+register({ k:"survie", sec:"jouer", icon:"heart", col:"#13a35a", name:"Survie", desc:"3 vies, de plus en plus vite. Un QCM boss toutes les 10 questions.",
+  rec:g => g.survie ? "Record : " + g.survie : "", ok:cs => cs.filter(c => quizKinds(c).length).length >= 8, start:startSurvie });
+
 window.renderJeux = function(){
   const g = GR(), cs = scopeCards();
-  const nSt = P.stmtPool(cs).length, nTr = new Set(paPool().map(p => fold(p.ans))).size, nQ = cs.filter(c => quizKinds(c).length).length, nL = legCards().length;
-  const tile = (k, icon, col, name, desc, rec, ok) => `<button class="gtile" data-play="${k}" ${ok ? "" : "disabled"}><span class="gi" style="--gc:${col}">${ic(icon, 26, "#fff")}</span><span><b>${name}</b><small>${desc}</small>${rec ? `<span class="rec">${ic("trophy", 12, "#face15")} ${rec}</span>` : ""}</span></button>`;
-  const legBest = Object.keys(g.leg || {}).length;
+  const tile = d => { const ok = d.ok(cs), rec = d.rec ? d.rec(g) : "";
+    return `<button class="gtile" data-play="${d.k}" ${ok ? "" : "disabled"}><span class="gi" style="--gc:${d.col}">${ic(d.icon, 26, "#fff")}</span><span><b>${d.name}</b><small>${d.desc}${d.count ? " " + d.count(cs) + "." : ""}</small>${rec ? `<span class="rec">${ic("trophy", 12, "#face15")} ${rec}</span>` : ""}${ok ? "" : `<span class="rec" style="color:var(--muted)">Rien à jouer ici : choisis « Tout »</span>`}</span></button>`; };
   $("pgJeux").innerHTML = `<div class="ohead" style="padding:0 0 10px"><button class="x" data-j="back">‹</button><div class="tt" style="text-align:center;margin-right:46px"><span class="ico-row">${ic("zap", 18)} Jeux</span></div></div>
-    <p class="note" style="margin-top:0">Des mini-jeux avec tes cartes. Tes erreurs reviennent dans « À revoir ».</p>
+    <p class="note" style="margin-top:0">Tout vient de tes cours. Tes erreurs reviennent dans « À revoir ».</p>
     <div class="sect">Sur quoi</div><div class="chips">${scopes().map(s => `<button data-sc="${esc(s.k)}" class="${(S.gameScope || "all") === s.k ? "on" : ""}">${esc(s.nom)}</button>`).join("")}</div>
-    <div class="sect">Jeux</div>
-    ${tile("swipe", "zap", "#fe2c55", "Swipe chrono", "Vrai à droite, faux à gauche. 60 s, +2 s par bonne réponse, −3 s par erreur.", g.swipe ? "Record : " + g.swipe : "", nSt >= 6)}
-    ${tile("legende", "puzzle", "#7b3cff", "Légendes à placer", `Touche une étiquette, puis sa place sur le schéma. ${nL} schémas de physio.`, legBest ? legBest + " schéma" + (legBest > 1 ? "s" : "") + " réussi" + (legBest > 1 ? "s" : "") : "", nL > 0)}
-    ${tile("paires", "copy", "#0a7cff", "Paires", "Relie chaque phrase à son mot manquant. 3 manches de 5, le plus vite possible.", g.paires ? "Record : " + fmtT(g.paires) : "", nTr >= 5)}
-    ${tile("survie", "heart", "#13a35a", "Survie", "3 vies, de plus en plus vite. Un QCM boss toutes les 10 questions.", g.survie ? "Record : " + g.survie : "", nQ >= 8)}`;
+    <button class="gtile" data-play="surprise" style="background:linear-gradient(135deg,#fe2c55,#7b3cff);border:0"><span class="gi" style="--gc:rgba(0,0,0,.25)">${ic("shuffle", 26, "#fff")}</span><span><b>Surprise</b><small style="color:#fff;opacity:.85">Un jeu au hasard. Laisse-toi porter.</small></span></button>
+    ${SECTIONS.map(([sec, nom]) => { const ds = REG.filter(d => d.sec === sec); return ds.length ? `<div class="sect">${nom}</div>` + ds.map(tile).join("") : ""; }).join("")}`;
 };
 $("pgJeux").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b || b.disabled) return; Sound.SFX.tap();
@@ -401,14 +412,26 @@ $("pgJeux").addEventListener("click", e => {
   if (b.dataset.sc) { S.gameScope = b.dataset.sc; save(); renderJeux(); return; }
   if (b.dataset.play) openGame(b.dataset.play);
 });
-function openGame(k){
+function openGame(k, arg){
+  let d = REG.find(x => x.k === k);
+  if (k === "surprise") { const cs = scopeCards(), ok = REG.filter(x => x.ok(cs) && !x.noSurprise); d = pick(ok); if (!d) return; toast("Surprise : " + d.name, "shuffle"); }
+  if (!d) return;
   gameEl.classList.add("show"); Sound.SFX.swoosh && Sound.SFX.swoosh();
-  ({ swipe:startSwipe, legende:() => startLegendes(), paires:startPaires, survie:startSurvie })[k]();
+  GT.handler = null; GT.keys = null; GT.kind = d.k; gameEl.classList.remove("story");
+  d.start(arg);
 }
 window.openGame = openGame;
-function closeGame(silent){ gStop(); gameEl.classList.remove("show"); gameEl.innerHTML = ""; if (!silent) renderJeux(); updateHud(); }
+function closeGame(silent){ gStop(); GT.handler = null; GT.keys = null; gameEl.classList.remove("story"); gameEl.classList.remove("show"); gameEl.innerHTML = ""; if (!silent) renderJeux(); updateHud(); }
 gameEl.addEventListener("click", e => {
-  const b = e.target.closest("button");
+  const b = e.target.closest("button"), g = b && b.dataset.g;
+  if (g === "close") {                                   // deux touches pour quitter une partie en cours
+    if (gameEl.querySelector(".gend") || gameEl.querySelector(".gdone") || (LG.done && gameEl.querySelector(".lgimg")) || Date.now() - (GT.quitAsk || 0) < 2500) { GT.quitAsk = 0; closeGame(); }
+    else { GT.quitAsk = Date.now(); toast("Touche encore × pour quitter"); }
+    return;
+  }
+  if (g === "back") { closeGame(); return; }
+  if (g === "again") { GT.again && GT.again(); return; }
+  if (GT.handler) { GT.handler(e, b); return; }          // jeux des autres fichiers
   // légendes : on peut aussi toucher à côté d'une petite case
   if (LG.c && !LG.done && gameEl.querySelector(".lgimg")) {
     const wrap = e.target.closest(".mskwrap");
@@ -416,14 +439,6 @@ gameEl.addEventListener("click", e => {
     if (b && b.closest("#lgChips")) { if (LG.sel && LG.sel.kind === "mask") lgTry(b, LG.sel.el); else lgSelect("chip", b); return; }
   }
   if (!b) return;
-  const g = b.dataset.g;
-  if (g === "close") {                                   // deux touches pour quitter une partie en cours
-    if (gameEl.querySelector(".gend") || (LG.done && gameEl.querySelector(".lgimg")) || Date.now() - (GT.quitAsk || 0) < 2500) { GT.quitAsk = 0; closeGame(); }
-    else { GT.quitAsk = Date.now(); toast("Touche encore × pour quitter"); }
-    return;
-  }
-  if (g === "back") { closeGame(); return; }
-  if (g === "again") { GT.again && GT.again(); return; }
   if (g === "lgnext") { startLegendes(); return; }
   if (g === "lgsame") { startLegendes(LG.c); return; }
   if (b.dataset.sw) { swAnswer(b.dataset.sw === "1"); return; }
@@ -435,7 +450,11 @@ gameEl.addEventListener("click", e => {
 });
 document.addEventListener("keydown", e => {
   if (!gameEl.classList.contains("show")) return;
+  if (GT.keys && GT.keys(e)) return;
   if (gameEl.querySelector("#swCard")) { if (e.key === "ArrowRight") swAnswer(true); if (e.key === "ArrowLeft") swAnswer(false); }
   if (e.key === "Escape") closeGame();
 });
+
+// pour les autres fichiers de jeux
+window.FT_GAMES = { register, gameEl, head, endScreen, flushErrors, scopeCards, scopeName, gStop, later, every, flash, GR, fold, fmtT, pick, GT, closeGame, HEART };
 })();

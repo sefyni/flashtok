@@ -8,7 +8,9 @@ Mes flashcards de révision à scroller façon TikTok. Marche hors ligne et s'in
 - Pour toi (répétition espacée), CC avec compte à rebours, mode contrôle /20 avec questions de cours
 - Série + gels (gagnés avec les défis du jour), thèmes et ambiances
 - Bouton Réviser : session guidée (nombre de cartes au choix), plan de colle jour par jour, QCM concours A–E (barème LAS), schémas à compléter, mes erreurs, mode écoute
-- Jeux : swipe chrono (vrai/faux), légendes à placer sur les schémas, paires, survie avec QCM boss
+- Jeux : swipe chrono, paires, survie, tape la réponse, pendu, lettres mélangées, classe-moi ça, l'intrus, et après ?
+- Reconstruire les schémas : légendes à placer, montre-moi, le bon schéma, remets dans l'ordre, schéma fléché, tableau à remplir
+- Stories de séance
 - Sauvegarde de la progression par code · sons et musique générés en direct (`audio.js`)
 
 ## Installer sur l'iPhone

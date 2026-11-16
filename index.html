@@ -816,6 +816,8 @@ function buildList(){
     const vids = shuffle(VIDS.filter(v => F.f(v))).sort((a, b) => !!S.seenVids[a.src] - !!S.seenVids[b.src]);
     vids.forEach((v, k) => list.splice(Math.min(list.length, k === 0 && !S.seenVids[v.src] ? 1 : 1 + 6 * (k + 1)), 0, { vid:v }));
   }
+  // de temps en temps, un exercice pour reconstruire un schéma (atelier.js)
+  if (typeof exoInsert === "function" && F.key !== "revoir" && F.key !== "favs") list = exoInsert(list, F);
 }
 // 3 sortes de quiz : « C'est quoi ? » (déf → mot), « Complète » (trous), « Vrai ou faux »
 const CLOZE = /\{\{([\s\S]*?)\}\}/;
@@ -1024,7 +1026,7 @@ const CHUNK = 10; let rendered = 0;
 function appendChunk(n = CHUNK){
   if (rendered >= list.length) return;
   const end = Math.min(list.length, rendered + n), tmp = document.createElement("div");
-  tmp.innerHTML = list.slice(rendered, end).map((it, k) => it.vid ? videoSlide(it, rendered + k) : it.qcm ? qcmSlide(it, rendered + k) : it.quiz ? quizSlide(it, rendered + k) : cardSlide(it, rendered + k)).join("");
+  tmp.innerHTML = list.slice(rendered, end).map((it, k) => it.vid ? videoSlide(it, rendered + k) : it.exo ? exoSlide(it, rendered + k) : it.qcm ? qcmSlide(it, rendered + k) : it.quiz ? quizSlide(it, rendered + k) : cardSlide(it, rendered + k)).join("");
   const nodes = [...tmp.children]; nodes.forEach(nd => { feedEl.appendChild(nd); math(nd); const v = nd.querySelector("video"); if (v) watchVideo(nd, v); });
   rendered = end;
   if (rendered >= list.length) feedEl.insertAdjacentHTML("beforeend", `<section class="slide endslide" style="--c1:#2a1a5e;--c2:#5b1a3a"><div class="empty" id="endRecap"></div></section>`);
@@ -1078,6 +1080,7 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && zoomV.clas
 /* ---- interactions ---- */
 let lastTap = 0, tapTimer = null;
 feedEl.addEventListener("click", e => {
+  if (typeof exoClick === "function" && exoClick(e)) return;
   if (typeof plusClick === "function" && plusClick(e)) return;
   if (e.target.closest("[data-act=again]")) { renderFeed(false); return; }
   const qs = e.target.closest(".slide[data-quiz]");
@@ -1899,5 +1902,7 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")) naviga
 </script>
 <script src="plus.js"></script>
 <script src="games.js"></script>
+<script src="exos.js"></script>
+<script src="atelier.js"></script>
 </body>
 </html>

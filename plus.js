@@ -230,9 +230,10 @@ function sessionInfo(){
 function startSession(){
   const s = sessionCards();
   if (!s.cards.length) { toast("Tout est à jour : lance un QCM ou les schémas", "party"); return; }
-  let first = withQuizzes(s.cards, false);
+  const withExo = (l, cs) => typeof exoInsert === "function" ? exoInsert(l, { f:c => cs.includes(c) }) : l;
+  let first = withExo(withQuizzes(s.cards, false), s.cards);
   openCustom({ key:"session", nom:"Session du jour", mode:"card", f:() => false,
-    build:() => { if (first) { const l = first; first = null; return l; } const n = sessionCards(); return withQuizzes(n.cards, false); } });
+    build:() => { if (first) { const l = first; first = null; return l; } const n = sessionCards(); return withExo(withQuizzes(n.cards, false), n.cards); } });
 }
 window.startSession = startSession;
 
