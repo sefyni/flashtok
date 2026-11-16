@@ -824,7 +824,7 @@ const shortQ = c => !/\?/.test(c.q) && plain(c.q).split(/\s+/).filter(Boolean).l
 function quizKinds(c){
   const pool = ALL.filter(x => x !== c && x.matiere === c.matiere && shortQ(x)), others = pool.length >= 2 ? pool : ALL.filter(x => x !== c && shortQ(x));
   const k = [];
-  if (others.length >= 2 && shortQ(c)) k.push("def");
+  if (others.length >= 2 && shortQ(c) && shortDef(c.a)) k.push("def");
   (c.trous || []).forEach((_, i) => k.push("trou:" + i));
   (c.vf || []).forEach((_, i) => k.push("vf:" + i));
   (c.trous || []).forEach((t, i) => { if (CLOZE.test(t.t) && (t.faux || []).length) k.push("tv:" + i); });   // phrase à trous en vrai/faux
@@ -841,6 +841,17 @@ function maskTerm(a, q){
   const MASK = '<span class="masq">•••</span>';
   return String(a).split(/(\$\$[\s\S]*?\$\$|\$[^$]*\$|<[^>]*>)/).map((seg, i) => i % 2 ? seg
     : seg.replace(/[\p{L}\p{N}]+/gu, w => (w.length >= 3 && stems.some(st => fold(w).startsWith(st))) || acr.includes(w) ? MASK : w)).join("");
+}
+// « C'est quoi ? » : seulement la première phrase de la définition, si elle est courte
+function shortDef(a){
+  let t = String(a || "").split(/<p>|<br\s*\/?>/i)[0];
+  const m = t.match(/^((?:[^$.]|\$[^$]*\$|\.(?=\S))*?\.)(\s|$)/);   // jusqu'au premier point (hors formules)
+  if (m) t = m[1];
+  const len = plain(t).length;
+  if (len > 150) { const c2 = t.search(/ : | ; |, (?=[a-zà-ÿ]{3,} )/); if (c2 > 40 && plain(t.slice(0, c2)).length <= 150) t = t.slice(0, c2); else return null; }
+  const pt = plain(t).trim();
+  if (/^(•|\d+\s*[).]|[-–])/.test(pt) || /:\s*$/.test(pt)) return null;      // un morceau de liste, pas une définition
+  return pt.length >= 18 ? t : null;
 }
 // une phrase à trous transformée en affirmation vraie (bonne réponse) ou fausse (un leurre)
 function trouStatement(tr, truth){
@@ -875,13 +886,15 @@ function makeQuiz(c, kind){
   if (type === "tv") return tvQuiz(c, kind, Math.random() < 0.6);
   if (type === "def") {
     const pool = ALL.filter(x => x !== c && x.matiere === c.matiere && shortQ(x)), others = pool.length >= 2 ? pool : ALL.filter(x => x !== c && shortQ(x));
-    const opts = shuffle([c, ...shuffle(others.slice()).slice(0, others.length >= 3 ? 3 : 2)]).map(o => ({ h:o.q, ok:o === c }));
-    return { quiz:true, kind, c, head:"C'est quoi ?", prompt:maskTerm(c.a, c.q), opts, explain:null };
+    const sd = shortDef(c.a); if (!sd) return null;
+    const near = others.filter(o => o.chapitre === c.chapitre), far = others.filter(o => o.chapitre !== c.chapitre);
+    const opts = shuffle([c, ...[...shuffle(near.slice()), ...shuffle(far.slice())].slice(0, 2)]).map(o => ({ h:o.q, ok:o === c }));
+    return { quiz:true, kind, c, head:"C'est quoi ?", prompt:maskTerm(sd, c.q), opts, explain:null };
   }
   if (type === "trou") {
     const tr = c.trous[+n], ans = (tr.t.match(CLOZE) || [,""])[1];
     return { quiz:true, kind, c, head:"Complète", prompt:tr.t.replace(CLOZE, '<span class="blank">?</span>'),
-      opts:shuffle([{ h:ans, ok:true }, ...tr.faux.map(f => ({ h:f, ok:false }))]),
+      opts:shuffle([{ h:ans, ok:true }, ...shuffle(tr.faux.slice()).slice(0, 2).map(f => ({ h:f, ok:false }))]),
       explain:tr.t.replace(CLOZE, '<b class="hl">$1</b>') };
   }
   const v = c.vf[+n];
@@ -1735,7 +1748,7 @@ $("matBody").addEventListener("click", e => { if (e.target.closest("[data-exam]"
    ===================================================================== */
 const noteColor = n => n >= 16 ? "#2fd27a" : n >= 10 ? "#face15" : "#fe2c55";
 const dayLabel = d => { const k = TODAY() - d; return k === 0 ? "aujourd'hui" : k === 1 ? "hier" : `il y a ${k} jours`; };
-let EX = { mats:null, chaps:null, n:10, min:10, cours:true };
+let EX = { mats:null, chaps:null, n:10, min:10, cours:false };
 const examKinds = c => [...quizKinds(c), ...(EX.cours ? ["cours"] : [])];
 function openExamSetup(mats){ EX.mats = mats || MATIERES.map(m => m.nom); EX.chaps = null; openPage("exam"); }
 function examPool(){ return ALL.filter(c => EX.mats.includes(c.matiere) && (!EX.chaps || EX.chaps.includes(c.chapitre || "—"))); }
@@ -1821,7 +1834,7 @@ function coursInner(q, i){
   const c = q.c, shown = RUN.shown[i];
   return `<div class="qhead"><span class="live">COURS</span> ${TYPE_LBL[c.type] ? TYPE_LBL[c.type] + " à énoncer" : "À énoncer"}</div>
     <div class="qdef">Énonce : <b>${prep(c.q)}</b></div>
-    ${!shown ? `<p class="note" style="text-align:center">Écris-la sur une feuille (ou récite-la), avec les quantificateurs dans le bon ordre. Puis vérifie.</p>
+    ${!shown ? `<p class="note" style="text-align:center">Récite-la dans ta tête, puis vérifie.</p>
       <button class="reveal" data-x="reveal">${ic("eye", 18)} Voir la réponse</button>`
     : `<div class="ansbox">${prep(c.a)}</div>
       ${q.cle ? `<div class="note" style="margin:0 0 8px">Coche ce que tu avais bien écrit :</div><div class="clist">${q.cle.map((k, j) => `<button class="cle ${RUN.ticks[i].includes(j) ? "on" : ""}" data-cle="${j}"><span class="bx">${RUN.ticks[i].includes(j) ? ic("check", 16, "#000") : ""}</span><span>${prep(k)}</span></button>`).join("")}</div>`

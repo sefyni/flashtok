@@ -224,15 +224,15 @@ function sessionCards(){
   return { cards, nDue:due.length, nNew:nw.filter(isNew).length, leftNew:Math.max(0, fresh.length - nNew) };
 }
 function sessionInfo(){
-  const s = sessionCards(), nq = Math.floor(s.cards.length / 4), nqcm = Math.floor(s.cards.length / 8) + (s.cards.length >= 4 ? 1 : 0);
-  return { ...s, mins: Math.max(1, Math.round(s.cards.length * 0.35 + nq * 0.2 + nqcm * 1.2)) };
+  const s = sessionCards(), nq = Math.floor(s.cards.length / 4);
+  return { ...s, mins: Math.max(1, Math.round(s.cards.length * 0.35 + nq * 0.2)) };
 }
 function startSession(){
   const s = sessionCards();
   if (!s.cards.length) { toast("Tout est à jour : lance un QCM ou les schémas", "party"); return; }
-  let first = withQuizzes(s.cards, true);
+  let first = withQuizzes(s.cards, false);
   openCustom({ key:"session", nom:"Session du jour", mode:"card", f:() => false,
-    build:() => { if (first) { const l = first; first = null; return l; } const n = sessionCards(); return withQuizzes(n.cards, true); } });
+    build:() => { if (first) { const l = first; first = null; return l; } const n = sessionCards(); return withQuizzes(n.cards, false); } });
 }
 window.startSession = startSession;
 
