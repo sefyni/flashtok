@@ -47,6 +47,9 @@ document.head.insertAdjacentHTML("beforeend", `<style>
   .ttab td { background:#151515; padding:7px 6px; border-radius:8px; vertical-align:top; }
   .ttab td.blank { background:#2a2208; color:#face15; border:2px dashed #face15; text-align:center; font-weight:900; } .ttab td.sel { border-color:#25f4ee; border-style:solid; }
   .ttab td.ok { background:#0f3324; color:#bff3d6; }
+  .wdw { font-size:30px; font-weight:900; line-height:1.15; margin:10px 0 6px; }
+  .wdopts button { display:block; width:100%; text-align:left; background:#161616; border:2px solid #262626; border-radius:14px; padding:14px; margin-bottom:9px; font-size:15px; font-weight:700; line-height:1.35; }
+  .wdopts button.ok { background:#0f3324; border-color:#2fd27a; color:#bff3d6; } .wdopts button.ko { background:#3a1018; border-color:#fe2c55; color:#ffc2cd; }
   .tlrow { display:flex; width:100%; align-items:center; gap:10px; justify-content:space-between; text-align:left; background:#141414; border-radius:14px; padding:12px 14px; margin-bottom:8px; font-weight:800; font-size:15px; }
   .tlrow small { display:block; color:var(--muted); font-weight:600; font-size:12px; margin-top:2px; }
   .tlb { flex:none; font-size:11px; font-weight:800; padding:4px 8px; border-radius:999px; background:#222; color:#aaa; } .tlb.ok { background:#0f3324; color:#7ee2a8; } .tlb.ko { background:#3a1018; color:#ff8fa3; }
@@ -352,6 +355,52 @@ function tbEnd(){
   if (TB.fromList) return tlEnd();
   const g = GR(), n = TB.list.length, isRec = n >= 3 && TB.perfect > (g.tableau || 0); if (isRec) g.tableau = TB.perfect;
   endScreen({ title:"Tableau à remplir", big:TB.perfect + "/" + n, sub:"tableaux sans faute · " + F.fmtT((Date.now() - TB.t0) / 1000), isRec, recTxt:n >= 3 ? "Record : " + (g.tableau || 0) + "/3" : "", errs:TB.errs, again:() => startTableau(n === 1 ? TB.list[0] : null) });
+}
+
+
+/* ---------- MOTS : un mot, choisis sa définition ---------- */
+const WD = {};
+const wKey = x => F.fold(x.w).toLowerCase();
+function wordPool(){ return (E.vocab || []).filter(inScope); }
+function wStat(x){ const v = S.vocab || (S.vocab = {}); return v[wKey(x)] || (v[wKey(x)] = { ok:0, ko:0 }); }
+function startMots(){
+  F.gStop();
+  const pool = wordPool();
+  if (pool.length < 4) { toast("Pas assez de mots ici : choisis « Tout »"); return F.closeGame(true); }
+  const score = x => { const s = wStat(x); return (s.ko - s.ok) * 2 + (s.ok + s.ko === 0 ? 1 : 0) + Math.random() * 1.5; };
+  const q = pool.slice().sort((a, b) => score(b) - score(a)).slice(0, 15);
+  Object.assign(WD, { pool, q:shuffle(q), i:0, ok:0, n:q.length, errs:[], back:new Map(), t0:Date.now(), lock:false });
+  gameEl.innerHTML = head("Mots", scopeName(), "") + `<div class="gbody"><div class="atl-row"><span>Mot <b id="wdI">1</b>/<b id="wdN">${WD.q.length}</b></span><span>Bonnes <b id="wdS">0</b></span></div><div class="atl-scroll" id="wdBox"></div></div>`;
+  wdRound();
+  setH((e, b) => {
+    if (!b) return;
+    if (b.dataset.wdn !== undefined) { WD.i++; if (WD.i >= WD.q.length) wdEnd(); else wdRound(); return; }
+    if (b.dataset.wd === undefined || WD.lock) return;
+    WD.lock = true;
+    const x = WD.q[WD.i], good = WD.opts[+b.dataset.wd] === x.d, st = wStat(x);
+    document.querySelectorAll("#wdBox [data-wd]").forEach(o => { if (WD.opts[+o.dataset.wd] === x.d) o.classList.add("ok"); });
+    if (good) { st.ok++; WD.ok++; $("wdS").textContent = WD.ok; yes(); save(); later(() => { WD.i++; if (WD.i >= WD.q.length) wdEnd(); else wdRound(); }, 650); return; }
+    st.ko++; b.classList.add("ko"); no(); save();
+    if (!WD.errs.some(e => e.t === x.w)) WD.errs.push({ c:null, t:x.w, why:x.d });
+    const k = wKey(x), nb = WD.back.get(k) || 0;
+    if (nb < 2) { WD.back.set(k, nb + 1); WD.q.splice(Math.min(WD.q.length, WD.i + 4), 0, x); $("wdN").textContent = WD.q.length; }
+    $("wdFb").innerHTML = `<div class="atl-s" style="margin:4px 0 10px">${esc(x.w)} : ${esc(x.d)}. Il reviendra un peu plus loin.</div><div class="gbtns"><button class="main" data-wdn="1" style="width:100%;padding:14px;border-radius:14px;font-weight:900;background:var(--red)">Suivant</button></div>`;
+  });
+}
+function wdRound(){
+  const x = WD.q[WD.i]; WD.lock = false;
+  const same = WD.pool.filter(y => y !== x && y.d !== x.d && y.chapitre === x.chapitre && y.matiere === x.matiere);
+  const other = WD.pool.filter(y => y !== x && y.d !== x.d && !same.includes(y));
+  const wrong = shuffle(same).slice(0, 2); if (wrong.length < 2) wrong.push(...shuffle(other).slice(0, 2 - wrong.length));
+  WD.opts = shuffle([x.d, ...wrong.map(y => y.d)]);
+  $("wdI").textContent = WD.i + 1;
+  $("wdBox").innerHTML = `<div class="atl-s">${sub(x)}</div><div class="wdw">${esc(x.w)}</div><div class="atl-s" style="margin-bottom:12px">Choisis la bonne définition</div>
+    <div class="wdopts">${WD.opts.map((d, k) => `<button data-wd="${k}">${esc(d)}</button>`).join("")}</div><div id="wdFb"></div>`;
+}
+function wdEnd(){
+  const g = GR(), first = WD.n, isRec = WD.ok > (g.mots || 0) && WD.n >= 10; if (isRec) g.mots = WD.ok;
+  const known = (E.vocab || []).filter(x => { const s = (S.vocab || {})[wKey(x)]; return s && s.ok > s.ko && s.ok >= 2; }).length;
+  endScreen({ title:"Mots", big:WD.ok + "/" + WD.q.length, sub:`bonnes réponses · ${known}/${(E.vocab || []).length} mots bien connus`, isRec, recTxt:"", errs:WD.errs, again:startMots });
 }
 
 /* ---------- MES TABLEAUX : tous les tableaux de tes cours, à remplir un par un ---------- */
@@ -1046,6 +1095,8 @@ R({ k:"ordre", sec:"schemas", icon:"listcheck", col:"#13a35a", name:"Remets dans
   rec:g => g.ordre ? "Record : " + g.ordre + "/5 sans faute" : "", ok:() => itemsIn(E.seq).length > 0, start:startOrdre, count:() => itemsIn(E.seq).length + " séquences" });
 R({ k:"fleche", sec:"schemas", icon:"trend", col:"#ff2d87", name:"Schéma fléché", desc:"Une cascade ou une boucle avec des cases vides : remplis-les.",
   rec:g => g.fleche ? "Record : " + g.fleche + "/4 sans faute" : "", ok:() => itemsIn(E.seq).length > 0, start:startFleche });
+R({ k:"mots", sec:"apprendre", icon:"bulb", col:"#25b8ee", name:"Mots", desc:"Un mot de ton cours, 3 définitions : choisis la bonne. Les ratés reviennent.", noSurprise:true,
+  rec:g => g.mots ? "Record : " + g.mots + "/15" : "", ok:() => wordPool().length >= 4, start:startMots, count:() => wordPool().length + " mots" });
 R({ k:"tabs", sec:"schemas", icon:"file", col:"#face15", name:"Mes tableaux", desc:"Tous les tableaux de tes cours, à remplir un par un.", noSurprise:true,
   rec:() => "", ok:() => E.tables.length > 0, start:startTabList, count:() => E.tables.length + " tableaux" });
 R({ k:"tableau", sec:"schemas", icon:"file", col:"#c9a400", name:"Tableau à remplir", desc:"Les tableaux de tes cours, avec des cases vides.",

@@ -258,6 +258,7 @@ window.renderHub = function(){
       ${hubTile("jeux", "zap", "#ff2d87", "Jeux", "Swipe, légendes, paires, survie")}
       ${hubTile("plan", "calendar", "#0a7cff", "Plan de colle", nx ? "Jour par jour jusqu'au " + (nx.j ? "J-" + nx.j : "CC") : "Ajoute une date")}
       ${hubTile("qcm", "listcheck", "#fe2c55", "QCM concours", "5 propositions A–E")}
+      ${hubTile("mots", "bulb", "#25b8ee", "Mots", ((window.EXOS && EXOS.vocab && EXOS.vocab.length) || 0) + " mots à connaître")}
       ${hubTile("tableaux", "file", "#c9a400", "Mes tableaux", ((window.EXOS && EXOS.tables.length) || 0) + " tableaux à remplir")}
       ${hubTile("legende", "puzzle", "#7b3cff", "Schémas à compléter", msk + " schémas à légender")}
       ${hubTile("erreurs", "target", "#ff7a1a", "Mes erreurs", `${pl(err, "ratée")} · ${pl(pg, "piège")} ⚠`)}
@@ -279,6 +280,7 @@ $("pgHub").addEventListener("click", e => {
   else if (h === "jeux") openPage("jeux");
   else if (h === "boss") openGame("boss");
   else if (h === "tableaux") openGame("tabs");
+  else if (h === "mots") openGame("mots");
   else if (h === "legende") openCustom({ key:"legende", nom:"Schémas à compléter", mode:"schema", f:c => !!c.masks });
   else if (h === "erreurs") openErreurs();
   else if (h === "ecoute") openListen();
