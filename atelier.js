@@ -41,11 +41,15 @@ document.head.insertAdjacentHTML("beforeend", `<style>
   .fchips button { padding:9px 12px; border-radius:999px; background:#1d1d1d; font-size:13px; font-weight:700; border:2px solid transparent; text-align:left; }
   .fchips button.sel { border-color:#25f4ee; background:#0e2e30; }
   /* tableau */
-  .ttab { width:100%; border-collapse:separate; border-spacing:4px; font-size:12.5px; line-height:1.3; }
+  .ttab { width:100%; table-layout:fixed; border-collapse:separate; border-spacing:4px; font-size:12.5px; line-height:1.3; overflow-wrap:anywhere; hyphens:auto; }
+  .ttab td.blank { display:table-cell; height:34px; margin:0; min-width:0; }
   .ttab th { background:#222; padding:8px 6px; border-radius:8px; text-align:left; font-weight:800; }
   .ttab td { background:#151515; padding:7px 6px; border-radius:8px; vertical-align:top; }
   .ttab td.blank { background:#2a2208; color:#face15; border:2px dashed #face15; text-align:center; font-weight:900; } .ttab td.sel { border-color:#25f4ee; border-style:solid; }
   .ttab td.ok { background:#0f3324; color:#bff3d6; }
+  .tlrow { display:flex; width:100%; align-items:center; gap:10px; justify-content:space-between; text-align:left; background:#141414; border-radius:14px; padding:12px 14px; margin-bottom:8px; font-weight:800; font-size:15px; }
+  .tlrow small { display:block; color:var(--muted); font-weight:600; font-size:12px; margin-top:2px; }
+  .tlb { flex:none; font-size:11px; font-weight:800; padding:4px 8px; border-radius:999px; background:#222; color:#aaa; } .tlb.ok { background:#0f3324; color:#7ee2a8; } .tlb.ko { background:#3a1018; color:#ff8fa3; }
   /* tri */
   .trcard { margin:10px 0 18px; padding:28px 18px; border-radius:22px; background:linear-gradient(160deg,#7b3cff,#fe2c55); text-align:center; font-size:21px; font-weight:900; line-height:1.3; }
   .trbk { display:grid; gap:8px; } .trbk button { padding:15px 12px; border-radius:14px; background:#1a1a1a; font-weight:800; font-size:14.5px; display:flex; justify-content:space-between; align-items:center; border:2px solid transparent; }
@@ -315,12 +319,12 @@ function flEnd(){
    5. TABLEAU À REMPLIR
    ===================================================================== */
 const TB = {};
-function startTableau(item){
-  F.gStop();
+function startTableau(item, opt){
+  F.gStop(); opt = opt || {};
   const list = item ? [item] : shuffle(itemsIn(E.tables).slice()).slice(0, 3);
   if (!list.length) { toast("Pas de tableau ici : choisis « Tout »"); return F.closeGame(true); }
-  Object.assign(TB, { list, i:0, perfect:0, errs:[], t0:Date.now() });
-  gameEl.innerHTML = head("Tableau à remplir", scopeName(), "0:00") + `<div class="gbody"><div class="atl-row"><span>Tableau <b id="tbI">1</b>/${list.length}</span><span>Sans faute <b id="tbP">0</b></span></div><div class="atl-scroll" id="tbBox"></div></div>`;
+  Object.assign(TB, { list, i:0, perfect:0, errs:[], t0:Date.now(), fromList:!!opt.fromList, full:opt.fromList ? !!S.tbFull : false });
+  gameEl.innerHTML = head(TB.fromList ? "Mes tableaux" : "Tableau à remplir", TB.fromList ? (TB.full ? "Tout à remplir" : "À trous") : scopeName(), "0:00") + `<div class="gbody"><div class="atl-row"><span>${TB.fromList ? "Cases restantes <b id=\"tbL\">0</b>" : `Tableau <b id="tbI">1</b>/${list.length}`}</span><span>${TB.fromList ? "Erreurs <b id=\"tbE\">0</b>" : "Sans faute <b id=\"tbP\">0</b>"}</span></div><div class="atl-scroll" id="tbBox"></div></div>`;
   timerHead(TB.t0); tbRound();
   setH((e, b) => {
     const td = e.target.closest("td.blank"); if (td && !b) b = td;
@@ -330,22 +334,69 @@ function startTableau(item){
 function tbRound(){
   const t = TB.list[TB.i]; TB.faute = 0; TB.sel = null;
   const cells = []; t.rows.forEach((r, ri) => r.forEach((v, ci) => { if (ci > 0 && v && v !== "—") cells.push(ri + "-" + ci); }));
-  const nh = Math.min(cells.length, Math.max(2, Math.ceil(cells.length * 0.6))), hid = new Set(shuffle(cells).slice(0, nh));
+  const nh = TB.full ? cells.length : Math.min(cells.length, Math.max(2, Math.ceil(cells.length * 0.6))), hid = new Set(shuffle(cells).slice(0, nh));
   TB.left = hid.size;
-  $("tbI").textContent = TB.i + 1;
+  if ($("tbI")) $("tbI").textContent = TB.i + 1;
+  if ($("tbL")) $("tbL").textContent = TB.left;
   const val = id => { const [ri, ci] = id.split("-").map(Number); return t.rows[ri][ci]; };
   $("tbBox").innerHTML = `<div class="atl-t">${esc(t.titre)}</div><div class="atl-s">${sub(t)} · touche une étiquette, puis sa case</div>
-    <table class="ttab"><tr>${t.cols.map(h => `<th>${esc(h)}</th>`).join("")}</tr>${t.rows.map((r, ri) => `<tr>${r.map((v, ci) => ci === 0 ? `<th>${esc(v)}</th>` : hid.has(ri + "-" + ci) ? `<td class="blank" data-tbb="${ri}-${ci}">?</td>` : `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</table>
+    <div style="overflow-x:auto"><table class="ttab"><tr>${t.cols.map(h => `<th>${esc(h)}</th>`).join("")}</tr>${t.rows.map((r, ri) => `<tr>${r.map((v, ci) => ci === 0 ? `<th>${esc(v)}</th>` : hid.has(ri + "-" + ci) ? `<td class="blank" data-tbb="${ri}-${ci}">?</td>` : `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</table></div>
     <div class="fchips">${shuffle([...hid].map(id => val(id))).map(v => `<button data-tbc="${esc(v)}">${esc(v)}</button>`).join("")}</div>`;
 }
 function tbCheck(cell, chip){
   const t = TB.list[TB.i], [ri, ci] = cell.dataset.tbb.split("-").map(Number);
-  if (t.rows[ri][ci] === chip.dataset.tbc) { cell.textContent = t.rows[ri][ci]; cell.classList.remove("blank"); cell.classList.add("ok"); delete cell.dataset.tbb; chip.remove(); yes(); return --TB.left === 0; }
-  if (!TB.faute) TB.errs.push(errOf(t, t.titre, t.rows.map(r => `<b>${esc(r[0])}</b> : ${r.slice(1).map(esc).join(" · ")}`).join("<br>"))); TB.faute++; shake(cell); shake(chip); no(); return false;
+  if (t.rows[ri][ci] === chip.dataset.tbc) { cell.textContent = t.rows[ri][ci]; cell.classList.remove("blank"); cell.classList.add("ok"); delete cell.dataset.tbb; chip.remove(); yes(); TB.left--; if ($("tbL")) $("tbL").textContent = TB.left; return TB.left === 0; }
+  if (!TB.faute) TB.errs.push(errOf(t, t.titre, t.rows.map(r => `<b>${esc(r[0])}</b> : ${r.slice(1).map(esc).join(" · ")}`).join("<br>"))); TB.faute++; if ($("tbE")) $("tbE").textContent = TB.faute; shake(cell); shake(chip); no(); return false;
 }
 function tbEnd(){
+  if (TB.fromList) return tlEnd();
   const g = GR(), n = TB.list.length, isRec = n >= 3 && TB.perfect > (g.tableau || 0); if (isRec) g.tableau = TB.perfect;
   endScreen({ title:"Tableau à remplir", big:TB.perfect + "/" + n, sub:"tableaux sans faute · " + F.fmtT((Date.now() - TB.t0) / 1000), isRec, recTxt:n >= 3 ? "Record : " + (g.tableau || 0) + "/3" : "", errs:TB.errs, again:() => startTableau(n === 1 ? TB.list[0] : null) });
+}
+
+/* ---------- MES TABLEAUX : tous les tableaux de tes cours, à remplir un par un ---------- */
+const tlAll = () => { const order = []; MATIERES.forEach(m => (m.chapitres || []).forEach(ch => order.push(m.nom + "|" + ch)));
+  return E.tables.slice().sort((x, y) => { const a = order.indexOf(x.matiere + "|" + x.chapitre), b = order.indexOf(y.matiere + "|" + y.chapitre); return (a < 0 ? 999 : a) - (b < 0 ? 999 : b); }); };
+const tlStat = t => ((GR().tabs || {})[t.titre]) || null;
+function tlBadge(t){ const s = tlStat(t); if (!s) return `<span class="tlb">nouveau</span>`;
+  return s.best === 0 ? `<span class="tlb ok">${S.tbFull ? "✓" : "✓"} sans faute</span>` : `<span class="tlb ko">${s.last} erreur${s.last > 1 ? "s" : ""}</span>`; }
+function startTabList(){
+  F.gStop(); TB.fromList = false;
+  const all = tlAll(), done = all.filter(t => { const s = tlStat(t); return s && s.best === 0; }).length;
+  let html = "", cur = "";
+  all.forEach((t, i) => {
+    const k = t.matiere + " · " + (t.chapitre ? P.chLabel(t.chapitre) : "");
+    if (k !== cur) { cur = k; html += `<div class="sect">${esc(k)}</div>`; }
+    html += `<button class="tlrow" data-tl="${i}"><span>${esc(t.titre)}<small>${t.rows.length} lignes · ${t.cols.length} colonnes</small></span>${tlBadge(t)}</button>`;
+  });
+  gameEl.innerHTML = head("Mes tableaux", done + "/" + all.length + " sans faute") + `<div class="gbody"><div class="atl-scroll">
+    <div class="atl-s" style="margin-bottom:8px">Choisis un tableau et remplis-le avec les étiquettes.</div>
+    <div class="chips" style="margin-bottom:6px"><button data-tlm="0" class="${S.tbFull ? "" : "on"}">À trous</button><button data-tlm="1" class="${S.tbFull ? "on" : ""}">Tout remplir</button></div>
+    ${html}</div></div>`;
+  setH((e, b) => {
+    if (!b) return;
+    if (b.dataset.tlm !== undefined) { S.tbFull = b.dataset.tlm === "1"; save(); Sound.SFX.tap(); startTabList(); return; }
+    if (b.dataset.tl !== undefined) { Sound.SFX.tap(); TB.idx = +b.dataset.tl; startTableau(all[TB.idx], { fromList:true }); }
+  });
+}
+function tlEnd(){
+  const t = TB.list[0], g = GR(), tabs = g.tabs || (g.tabs = {}), s = tabs[t.titre] || { n:0, best:null };
+  s.n++; s.last = TB.faute; s.best = s.best === null || s.best === undefined ? TB.faute : Math.min(s.best, TB.faute); tabs[t.titre] = s;
+  const n = F.flushErrors(TB.errs), all = tlAll();
+  let nx = -1; for (let k = 1; k <= all.length; k++) { const j = (TB.idx + k) % all.length, st = tlStat(all[j]); if (!st || st.best !== 0) { nx = j; break; } }
+  if (nx < 0) nx = (TB.idx + 1) % all.length;
+  F.gStop();
+  gameEl.innerHTML = head("Mes tableaux", esc(t.titre)) + `<div class="gbody"><div class="gend">
+    ${ic(TB.faute ? "target" : "trophy", 44, "#face15")}
+    <div class="big" style="font-size:40px">${TB.faute ? TB.faute + " erreur" + (TB.faute > 1 ? "s" : "") : "Sans faute !"}</div>
+    <div class="sub">${esc(t.titre)} · ${F.fmtT((Date.now() - TB.t0) / 1000)}${s.n > 1 ? " · essai n°" + s.n : ""}</div>
+    ${TB.faute ? `<div class="sub" style="margin-top:8px">${n ? "La carte liée est ajoutée dans « À revoir »." : ""} Refais-le jusqu'au sans faute.</div>` : ""}
+    <div class="gbtns"><button data-tlx="list">Liste</button><button data-tlx="again">Refaire</button><button class="main" data-tlx="next">Suivant</button></div></div></div>`;
+  if (!TB.faute) confetti(60);
+  setH((e, b) => { if (!b || !b.dataset.tlx) return; Sound.SFX.tap();
+    if (b.dataset.tlx === "list") startTabList();
+    else if (b.dataset.tlx === "again") startTableau(t, { fromList:true });
+    else { TB.idx = nx; startTableau(all[nx], { fromList:true }); } });
 }
 
 /* =====================================================================
@@ -995,6 +1046,8 @@ R({ k:"ordre", sec:"schemas", icon:"listcheck", col:"#13a35a", name:"Remets dans
   rec:g => g.ordre ? "Record : " + g.ordre + "/5 sans faute" : "", ok:() => itemsIn(E.seq).length > 0, start:startOrdre, count:() => itemsIn(E.seq).length + " séquences" });
 R({ k:"fleche", sec:"schemas", icon:"trend", col:"#ff2d87", name:"Schéma fléché", desc:"Une cascade ou une boucle avec des cases vides : remplis-les.",
   rec:g => g.fleche ? "Record : " + g.fleche + "/4 sans faute" : "", ok:() => itemsIn(E.seq).length > 0, start:startFleche });
+R({ k:"tabs", sec:"schemas", icon:"file", col:"#face15", name:"Mes tableaux", desc:"Tous les tableaux de tes cours, à remplir un par un.", noSurprise:true,
+  rec:() => "", ok:() => E.tables.length > 0, start:startTabList, count:() => E.tables.length + " tableaux" });
 R({ k:"tableau", sec:"schemas", icon:"file", col:"#c9a400", name:"Tableau à remplir", desc:"Les tableaux de tes cours, avec des cases vides.",
   rec:g => g.tableau ? "Record : " + g.tableau + "/3 sans faute" : "", ok:() => itemsIn(E.tables).length > 0, start:startTableau, count:() => itemsIn(E.tables).length + " tableaux" });
 R({ k:"tape", sec:"jouer", icon:"pen", col:"#25b8ee", name:"Tape la réponse", desc:"Aucune proposition : écris le mot manquant de mémoire. Les accents ne comptent pas.",
