@@ -366,8 +366,70 @@ function tbEnd(){
 }
 
 
-/* ---------- MOTS : un mot, choisis sa définition ---------- */
-const WD = {};
+/* ---------- MOTS : séries, chrono, combo ---------- */
+document.head.insertAdjacentHTML("beforeend", `<style>
+  .fxtop { display:flex; align-items:center; gap:10px; margin:0 2px 8px; }
+  .fxdots { flex:1; display:flex; gap:3px; } .fxdots i { flex:1; height:5px; border-radius:3px; background:#262626; } .fxdots i.ok { background:#2fd27a; } .fxdots i.ko { background:#fe2c55; } .fxdots i.cur { background:#fff; }
+  .fxpts { font-weight:900; font-size:18px; min-width:62px; text-align:right; }
+  .fxcombo { font-weight:900; font-size:12px; padding:4px 9px; border-radius:999px; background:#1d1d1d; color:#888; transition:transform .2s; white-space:nowrap; }
+  .fxcombo.hot { background:linear-gradient(90deg,#ff8a00,#fe2c55); color:#fff; transform:scale(1.08); }
+  .fxtime { height:6px; border-radius:3px; background:#1d1d1d; overflow:hidden; margin:0 2px 12px; } .fxtime i { display:block; height:100%; width:100%; background:#25f4ee; transform-origin:left; }
+  .fxtime i.run { animation:fxrun linear forwards; } @keyframes fxrun { from { transform:scaleX(1); background:#25f4ee; } 70% { background:#face15; } to { transform:scaleX(0); background:#fe2c55; } }
+  .fxpop { position:absolute; left:50%; top:38%; transform:translate(-50%,0); font-weight:900; font-size:34px; color:#2fd27a; pointer-events:none; animation:fxpop .9s ease-out forwards; text-shadow:0 2px 12px rgba(0,0,0,.6); z-index:5; }
+  @keyframes fxpop { 0% { opacity:0; transform:translate(-50%,10px) scale(.6); } 25% { opacity:1; transform:translate(-50%,0) scale(1.15); } 100% { opacity:0; transform:translate(-50%,-50px) scale(1); } }
+  .wdcard { background:#141414; border-radius:20px; padding:18px 16px; margin-bottom:14px; text-align:center; animation:wdin .3s ease-out; }
+  @keyframes wdin { from { opacity:0; transform:translateY(14px) scale(.97); } }
+  .wdtag { display:inline-block; font-size:11px; font-weight:900; letter-spacing:.06em; text-transform:uppercase; padding:4px 10px; border-radius:999px; background:#25b8ee22; color:#25b8ee; margin-bottom:8px; }
+  .wdtag.rev { background:#ff2d8722; color:#ff2d87; }
+  .wdcard .wdw { margin:4px 0 2px; } .wdcard .wddef { font-size:19px; font-weight:800; line-height:1.35; }
+  .wdopts.grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; } .wdopts.grid button { margin:0; text-align:center; font-size:16px; font-weight:900; padding:18px 8px; }
+  .wdopts button { transition:transform .1s; } .wdopts button:active { transform:scale(.97); }
+  .wdopts button.dim { opacity:.35; }
+  .mtseg { display:flex; background:#1a1a1a; border-radius:14px; padding:4px; margin:12px 0 14px; } .mtseg button { flex:1; padding:11px; border-radius:11px; font-weight:900; font-size:15px; color:#999; }
+  .mtseg button.on { background:#fff; color:#000; }
+  .dcslots { display:flex; flex-wrap:wrap; justify-content:center; gap:6px; margin:6px 0 4px; min-height:54px; }
+  .dcslot { min-width:64px; padding:12px 12px; border-radius:12px; border:2px dashed #3a3a3a; font-weight:900; font-size:18px; color:#fff; background:#0d0d0d; display:flex; flex-direction:column; align-items:center; }
+  .dcslot.f { border-style:solid; border-color:#25f4ee; background:#0e2a2b; } .dcslot.ok { border-color:#2fd27a; background:#0f3324; } .dcslot.ko { border-color:#fe2c55; background:#3a1018; }
+  .dcslot small { font-size:11px; font-weight:700; color:#9be7c4; margin-top:3px; } .dcslot.hint small { color:#face15; }
+  .dcword { text-align:center; font-weight:900; font-size:24px; letter-spacing:.02em; min-height:32px; margin:6px 0 2px; color:#25f4ee; }
+  .dcpool { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-top:14px; }
+  .dcpool button { padding:13px 15px; border-radius:14px; background:#1f1f1f; border:2px solid #333; font-weight:900; font-size:17px; transition:transform .1s, opacity .2s; }
+  .dcpool button:active { transform:scale(.94); } .dcpool button.used { opacity:.15; pointer-events:none; }
+  .dcbrk { text-align:center; font-size:14px; line-height:1.6; color:#ddd; margin-top:10px; } .dcbrk b { color:#25f4ee; }
+  .dcrow { display:block; width:100%; text-align:left; background:#141414; border-radius:12px; padding:12px 14px; margin-bottom:6px; border-left:4px solid #333; }
+  .dcrow.ok { border-left-color:#2fd27a; } .dcrow.ko { border-left-color:#fe2c55; } .dcrow.mid { border-left-color:#face15; }
+  .dcrow .mtd { display:none; } .dcrow.open .mtd { display:block; }
+  .rcgrid { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:14px; }
+  .rcgrid div { background:#141414; border-radius:10px; padding:8px 10px; font-size:13px; line-height:1.3; } .rcgrid b { color:#25f4ee; display:block; font-size:14px; }
+  .mtsearch { width:100%; padding:12px 14px; border-radius:12px; background:#141414; border:2px solid #262626; color:#fff; font-size:15px; margin-bottom:10px; }
+</style>`);
+
+/* moteur commun : points, combo, chrono */
+const FX = {};
+const FX_T = 12;   // secondes pour le bonus de rapidité
+function fxReset(n){ Object.assign(FX, { pts:0, combo:0, best:0, res:[], n, t:0 }); }
+function fxBar(i, n){
+  return `<div class="fxtop"><div class="fxdots">${Array.from({ length:n }, (_, k) => `<i class="${FX.res[k] || (k === i ? "cur" : "")}"></i>`).join("")}</div>
+    <span class="fxcombo ${FX.combo >= 2 ? "hot" : ""}" id="fxC">${"Série ×" + FX.combo}</span><span class="fxpts" id="fxP">${FX.pts}</span></div>
+    <div class="fxtime"><i id="fxT"></i></div>`;
+}
+function fxStart(){ FX.t = Date.now(); const t = $("fxT"); if (t) { t.classList.remove("run"); void t.offsetWidth; t.style.animationDuration = FX_T + "s"; t.classList.add("run"); } }
+function fxStop(){ const t = $("fxT"); if (t) { const s = getComputedStyle(t).transform; t.classList.remove("run"); t.style.transform = s; } }
+function fxHit(i, good, half){
+  fxStop();
+  const sec = (Date.now() - FX.t) / 1000;
+  if (!good) { FX.combo = 0; FX.res[i] = "ko"; return 0; }
+  FX.combo++; FX.best = Math.max(FX.best, FX.combo); FX.res[i] = "ok";
+  const speed = Math.max(0, Math.round(50 * (1 - sec / FX_T)));
+  const pts = Math.round((100 + speed) * (1 + 0.25 * Math.min(FX.combo - 1, 4)) * (half ? .5 : 1));
+  FX.pts += pts;
+  const box = gameEl.querySelector(".gbody"); if (box) { box.style.position = "relative"; const p = document.createElement("div"); p.className = "fxpop"; p.textContent = "+" + pts; box.appendChild(p); setTimeout(() => p.remove(), 950); }
+  if (FX.combo === 3 || FX.combo === 6 || FX.combo === 10) { confetti(FX.combo * 8); }
+  return pts;
+}
+
+/* ---------- MOTS ---------- */
+const WD = {}; window.__WD = WD;
 const wKey = x => F.fold(x.w).toLowerCase();
 function wordPool(){ return WD.fromTab ? (E.vocab || []).filter(mtFilter()) : (E.vocab || []).filter(inScope); }
 function wStat(x){ const v = S.vocab || (S.vocab = {}); return v[wKey(x)] || (v[wKey(x)] = { ok:0, ko:0 }); }
@@ -376,72 +438,172 @@ function startMots(fromTab){
   const pool = wordPool();
   if (pool.length < 4) { toast("Pas assez de mots ici : choisis « Tout »"); return F.closeGame(true); }
   const score = x => { const s = wStat(x); return (s.ko - s.ok) * 2 + (s.ok + s.ko === 0 ? 1 : 0) + Math.random() * 1.5; };
-  const q = pool.slice().sort((a, b) => score(b) - score(a)).slice(0, 15);
-  Object.assign(WD, { pool, q:shuffle(q), i:0, ok:0, n:q.length, errs:[], back:new Map(), t0:Date.now(), lock:false });
-  gameEl.innerHTML = head("Mots", scopeName(), "") + `<div class="gbody"><div class="atl-row"><span>Mot <b id="wdI">1</b>/<b id="wdN">${WD.q.length}</b></span><span>Bonnes <b id="wdS">0</b></span></div><div class="atl-scroll" id="wdBox"></div></div>`;
+  const q = pool.slice().sort((a, b) => score(b) - score(a)).slice(0, 12);
+  Object.assign(WD, { pool, q:shuffle(q), i:0, ok:0, errs:[], back:new Map(), lock:false });
+  fxReset(WD.q.length);
+  gameEl.innerHTML = head("Mots", scopeName(), "") + `<div class="gbody"><div id="wdTop"></div><div class="atl-scroll" id="wdBox"></div></div>`;
   wdRound();
   setH((e, b) => {
     if (!b) return;
-    if (b.dataset.wdn !== undefined) { WD.i++; if (WD.i >= WD.q.length) wdEnd(); else wdRound(); return; }
+    if (b.dataset.wdn !== undefined) { wdNext(); return; }
     if (b.dataset.wd === undefined || WD.lock) return;
     WD.lock = true;
-    const x = WD.q[WD.i], good = WD.opts[+b.dataset.wd] === x.d, st = wStat(x);
-    document.querySelectorAll("#wdBox [data-wd]").forEach(o => { if (WD.opts[+o.dataset.wd] === x.d) o.classList.add("ok"); });
-    if (good) { st.ok++; WD.ok++; $("wdS").textContent = WD.ok; yes(); save(); later(() => { WD.i++; if (WD.i >= WD.q.length) wdEnd(); else wdRound(); }, 650); return; }
-    st.ko++; b.classList.add("ko"); no(); save();
+    const x = WD.q[WD.i], good = WD.opts[+b.dataset.wd] === WD.ans, st = wStat(x);
+    document.querySelectorAll("#wdBox [data-wd]").forEach(o => { if (WD.opts[+o.dataset.wd] === WD.ans) o.classList.add("ok"); else if (o !== b) o.classList.add("dim"); });
+    fxHit(WD.i, good); wdTop();
+    if (good) { st.ok++; WD.ok++; yes(Math.min(FX.combo, 4)); save(); later(wdNext, 700); return; }
+    st.ko++; b.classList.add("ko"); shake(b); no(); save();
     if (!WD.errs.some(e => e.t === x.w)) WD.errs.push({ c:null, t:x.w, why:x.d });
     const k = wKey(x), nb = WD.back.get(k) || 0;
-    if (nb < 2) { WD.back.set(k, nb + 1); WD.q.splice(Math.min(WD.q.length, WD.i + 4), 0, x); $("wdN").textContent = WD.q.length; }
-    $("wdFb").innerHTML = `<div class="atl-s" style="margin:4px 0 10px">${esc(x.w)} : ${esc(x.d)}. Il reviendra un peu plus loin.</div><div class="gbtns"><button class="main" data-wdn="1" style="width:100%;padding:14px;border-radius:14px;font-weight:900;background:var(--red)">Suivant</button></div>`;
+    if (nb < 2) { WD.back.set(k, nb + 1); WD.q.splice(Math.min(WD.q.length, WD.i + 4), 0, x); FX.n = WD.q.length; wdTop(); }
+    $("wdFb").innerHTML = `<div class="atl-s" style="margin:4px 0 10px"><b style="color:#fff">${esc(x.w)}</b> : ${esc(x.d)}. Il reviendra un peu plus loin.</div><button data-wdn="1" style="width:100%;padding:14px;border-radius:14px;font-weight:900;background:var(--red)">Suivant</button>`;
   });
 }
+function wdTop(){ $("wdTop").innerHTML = fxBar(WD.i, WD.q.length).replace(`<div class="fxtime"><i id="fxT"></i></div>`, ""); }
+function wdNext(){ WD.i++; if (WD.i >= WD.q.length) wdEnd(); else wdRound(); }
 function wdRound(){
   const x = WD.q[WD.i]; WD.lock = false;
-  const same = WD.pool.filter(y => y !== x && y.d !== x.d && y.chapitre === x.chapitre && y.matiere === x.matiere);
-  const other = WD.pool.filter(y => y !== x && y.d !== x.d && !same.includes(y));
-  const wrong = shuffle(same).slice(0, 2); if (wrong.length < 2) wrong.push(...shuffle(other).slice(0, 2 - wrong.length));
-  WD.opts = shuffle([x.d, ...wrong.map(y => y.d)]);
-  $("wdI").textContent = WD.i + 1;
-  $("wdBox").innerHTML = `<div class="atl-s">${sub(x)}</div><div class="wdw">${esc(x.w)}</div><div class="atl-s" style="margin-bottom:12px">Choisis la bonne définition</div>
-    <div class="wdopts">${WD.opts.map((d, k) => `<button data-wd="${k}">${esc(d)}</button>`).join("")}</div><div id="wdFb"></div>`;
+  const same = WD.pool.filter(y => y !== x && y.d !== x.d && y.w !== x.w && y.chapitre === x.chapitre && y.matiere === x.matiere);
+  const other = WD.pool.filter(y => y !== x && y.d !== x.d && y.w !== x.w && !same.includes(y));
+  const rev = WD.i % 2 === 1 && WD.pool.length >= 4;   // une question sur deux : définition → mot
+  const nW = rev ? 3 : 2, wrong = shuffle(same).slice(0, nW); if (wrong.length < nW) wrong.push(...shuffle(other).slice(0, nW - wrong.length));
+  WD.ans = rev ? x.w : x.d;
+  WD.opts = shuffle([WD.ans, ...wrong.map(y => rev ? y.w : y.d)]);
+  wdTop();
+  $("wdBox").innerHTML = `<div class="fxtime"><i id="fxT"></i></div><div class="wdcard"><span class="wdtag ${rev ? "rev" : ""}">${rev ? "Quel mot ?" : "Quelle définition ?"}</span>
+    ${rev ? `<div class="wddef">${esc(x.d)}</div>` : `<div class="wdw">${esc(x.w)}</div>`}<div class="atl-s" style="margin:6px 0 0">${sub(x)}</div></div>
+    <div class="wdopts ${rev ? "grid" : ""}">${WD.opts.map((d, k) => `<button data-wd="${k}">${esc(d)}</button>`).join("")}</div><div id="wdFb"></div>`;
+  fxStart();
 }
 function wdEnd(){
-  const g = GR(), first = WD.n, isRec = WD.ok > (g.mots || 0) && WD.n >= 10; if (isRec) g.mots = WD.ok;
+  const g = GR(), isRec = FX.pts > (g.motsPts || 0) && WD.q.length >= 8; if (isRec) g.motsPts = FX.pts; g.mots = Math.max(g.mots || 0, WD.ok);
   const known = (E.vocab || []).filter(x => { const s = (S.vocab || {})[wKey(x)]; return s && s.ok > s.ko && s.ok >= 2; }).length;
-  endScreen({ title:"Mots", big:WD.ok + "/" + WD.q.length, sub:`bonnes réponses · ${known}/${(E.vocab || []).length} mots bien connus`, isRec, recTxt:"", errs:WD.errs, again:() => startMots(WD.fromTab) });
+  endScreen({ title:"Mots", big:FX.pts + " pts", sub:`${WD.ok}/${WD.q.length} bonnes · meilleure série ×${FX.best} · ${known}/${(E.vocab || []).length} mots connus`, isRec, recTxt:g.motsPts ? "Record : " + g.motsPts + " pts" : "", errs:WD.errs, again:() => startMots(WD.fromTab) });
 }
 
+/* ---------- DÉCODER : assemble les morceaux ---------- */
+const DC = {}; window.__DC = DC;
+const dKey = x => x.w;
+function dStat(x){ const v = S.dec || (S.dec = {}); return v[dKey(x)] || (v[dKey(x)] = { ok:0, ko:0 }); }
+const dState = x => { const s = (S.dec || {})[dKey(x)]; if (!s || s.ok + s.ko === 0) return "new"; return s.ok > s.ko && s.ok >= 2 ? "ok" : s.ko > 0 && s.ko >= s.ok ? "ko" : "mid"; };
+const rac = p => (E.racines || {})[p] || "";
+const brk = x => x.p.map(p => `<b>${esc(p)}</b> (${esc(rac(p))})`).join(" + ");
+function startDecoder(){
+  F.gStop();
+  const all = E.composes || []; if (all.length < 4) { toast("Pas encore de mots à décoder"); return F.closeGame(true); }
+  const score = x => { const s = dStat(x); return (s.ko - s.ok) * 2 + (s.ok + s.ko === 0 ? 1.2 : 0) + Math.random() * 2; };
+  const q = all.slice().sort((a, b) => score(b) - score(a)).slice(0, 10);
+  Object.assign(DC, { q:shuffle(q), i:0, ok:0, errs:[], back:new Map() });
+  fxReset(DC.q.length);
+  gameEl.innerHTML = head("Décoder", "Assemble le mot", "") + `<div class="gbody"><div id="dcTop"></div><div class="atl-scroll" id="dcBox"></div></div>`;
+  dcRound();
+  setH((e, b) => {
+    if (!b || DC.done) { if (b && b.dataset.dcn !== undefined) dcNext(); return; }
+    if (b.dataset.dcp !== undefined) { const k = +b.dataset.dcp, j = DC.slots.indexOf(null); if (j < 0) return; DC.slots[j] = k; Sound.SFX.tap(); buzz(8); dcDraw(); if (!DC.slots.includes(null)) dcCheck(); return; }
+    if (b.dataset.dcs !== undefined) { const j = +b.dataset.dcs; if (DC.slots[j] === null) return; DC.slots[j] = null; Sound.SFX.tap(); dcDraw(); return; }
+    if (b.dataset.dch !== undefined) { DC.hint = true; Sound.SFX.tap(); dcDraw(); return; }
+  });
+}
+function dcTop(){ $("dcTop").innerHTML = fxBar(DC.i, DC.q.length).replace(`<div class="fxtime"><i id="fxT"></i></div>`, ""); }
+function dcRound(){
+  const x = DC.q[DC.i];
+  const own = new Set(x.p.map(p => F.fold(p)));
+  const others = shuffle([...new Set((E.composes || []).filter(y => y !== x).flatMap(y => y.p))].filter(p => !own.has(F.fold(p))));
+  const extra = x.p.length >= 3 ? 3 : 4;
+  DC.chips = shuffle([...x.p, ...others.slice(0, extra)]);
+  Object.assign(DC, { slots:x.p.map(() => null), hint:false, done:false });
+  dcTop();
+  $("dcBox").innerHTML = `<div class="fxtime"><i id="fxT"></i></div><div class="wdcard"><span class="wdtag rev">${x.p.length} morceaux</span><div class="wddef">${esc(x.d)}</div></div><div id="dcPlay"></div>`;
+  dcDraw(); fxStart();
+}
+function dcDraw(){
+  const x = DC.q[DC.i];
+  const word = DC.slots.map(k => k === null ? "" : DC.chips[k]).join("");
+  $("dcPlay").innerHTML = `<div class="dcslots">${DC.slots.map((k, j) => `<button class="dcslot ${k !== null ? "f" : ""} ${DC.hint ? "hint" : ""}" data-dcs="${j}">${k !== null ? esc(DC.chips[k]) : "?"}${DC.hint ? `<small>${esc(rac(x.p[j]))}</small>` : ""}</button>`).join("")}</div>
+    <div class="dcword">${esc(word)}</div>
+    <div class="dcpool">${DC.chips.map((c, k) => `<button data-dcp="${k}" class="${DC.slots.includes(k) ? "used" : ""}">${esc(c)}</button>`).join("")}</div>
+    ${DC.hint ? "" : `<div style="text-align:center;margin-top:14px"><button data-dch="1" style="padding:9px 14px;border-radius:999px;background:#1d1d1d;font-size:13px;font-weight:800;color:#face15">Indice : le sens de chaque morceau (points ÷ 2)</button></div>`}`;
+}
+function dcCheck(){
+  const x = DC.q[DC.i], got = DC.slots.map(k => DC.chips[k]).join(""), good = F.fold(got) === F.fold(x.w), st = dStat(x);
+  DC.done = true; fxHit(DC.i, good, DC.hint); dcTop();
+  const slots = [...document.querySelectorAll("#dcPlay .dcslot")];
+  if (good) {
+    st.ok++; DC.ok++; yes(Math.min(FX.combo, 4)); save();
+    slots.forEach((el, j) => { el.classList.add("ok"); el.innerHTML = `${esc(x.p[j])}<small>${esc(rac(x.p[j]))}</small>`; });
+  } else {
+    st.ko++; no(); save(); slots.forEach((el, j) => { el.classList.add("ko"); el.innerHTML = esc(DC.chips[DC.slots[j]]); }); shake($("dcPlay"));
+    if (!DC.errs.some(e => e.t === x.w)) DC.errs.push({ c:null, t:x.w, why:x.p.map(p => p + " = " + rac(p)).join(" · ") });
+    const nb = DC.back.get(x.w) || 0; if (nb < 1) { DC.back.set(x.w, 1); DC.q.splice(Math.min(DC.q.length, DC.i + 3), 0, x); FX.n = DC.q.length; dcTop(); }
+  }
+  $("dcPlay").insertAdjacentHTML("beforeend", `<div class="dcbrk">${good ? "" : `La réponse : <b style="font-size:20px">${esc(x.w)}</b><br>`}${brk(x)}</div>
+    <button data-dcn="1" style="width:100%;margin-top:14px;padding:14px;border-radius:14px;font-weight:900;background:${good ? "#1d1d1d" : "var(--red)"}">Suivant</button>`);
+  $("dcPlay").querySelectorAll(".dcpool button").forEach(b2 => b2.classList.add("used"));
+  const hb = $("dcPlay").querySelector("[data-dch]"); if (hb) hb.parentNode.remove();
+  if (good) later(() => { if (DC.done && DC.q[DC.i] === x) dcNext(); }, 2600);
+}
+function dcNext(){ DC.i++; if (DC.i >= DC.q.length) dcEnd(); else dcRound(); }
+function dcEnd(){
+  const g = GR(), isRec = FX.pts > (g.decoder || 0) && DC.q.length >= 8; if (isRec) g.decoder = FX.pts;
+  const known = (E.composes || []).filter(x => dState(x) === "ok").length;
+  endScreen({ title:"Décoder", big:FX.pts + " pts", sub:`${DC.ok}/${DC.q.length} mots assemblés · meilleure série ×${FX.best} · ${known}/${(E.composes || []).length} mots maîtrisés`, isRec, recTxt:g.decoder ? "Record : " + g.decoder + " pts" : "", errs:DC.errs, again:startDecoder });
+}
 
-/* ---------- ONGLET MOTS ---------- */
+/* ---------- ONGLET MOTS (Mots du cours / Décoder) ---------- */
 const MT_KEY = x => x.matiere + "|" + x.chapitre;
 function mtGroups(){ const seen = new Map(); (E.vocab || []).forEach(x => { const k = MT_KEY(x); if (!seen.has(k)) seen.set(k, { k, m:x.matiere, ch:x.chapitre, n:0 }); seen.get(k).n++; }); const ord = []; MATIERES.forEach(m => (m.chapitres || []).forEach(ch => ord.push(m.nom + "|" + ch))); return [...seen.values()].sort((x, y) => ord.indexOf(x.k) - ord.indexOf(y.k)); }
 function mtFilter(){ const k = S.motsF || "all"; return x => k === "all" || MT_KEY(x) === k || (k.startsWith("m:") && x.matiere === k.slice(2)); }
 const mtState = x => { const s = (S.vocab || {})[wKey(x)]; if (!s || s.ok + s.ko === 0) return "new"; return s.ok > s.ko && s.ok >= 2 ? "ok" : s.ko > 0 && s.ko >= s.ok ? "ko" : "mid"; };
+const mtSeg = t => `<div class="mtseg"><button data-mtab="mots" class="${t === "mots" ? "on" : ""}">Mots du cours</button><button data-mtab="dec" class="${t === "dec" ? "on" : ""}">Décoder</button></div>`;
 window.renderMots = function(){
+  const tab = S.motsTab || "mots";
+  if (tab === "dec") return renderDecoder();
   const all = E.vocab || [], f = mtFilter(), list = all.filter(f), k = S.motsF || "all";
   const cnt = st => list.filter(x => mtState(x) === st).length;
   const mats = [...new Set(all.map(x => x.matiere))];
   const chips = [`<button data-mf="all" class="${k === "all" ? "on" : ""}">Tout</button>`]
     .concat(mats.map(m => `<button data-mf="m:${esc(m)}" class="${k === "m:" + m ? "on" : ""}">${esc(m)}</button>`))
     .concat(mtGroups().map(g => `<button data-mf="${esc(g.k)}" class="${k === g.k ? "on" : ""}">${esc(g.m === "Physiologie" ? "Physio" : g.m === "Histologie" ? "Histo" : g.m)} ${esc(P.chLabel(g.ch).split(" ·")[0] || g.ch)}</button>`)).join("");
-  const filt = S.motsShow || "all";
+  const filt = S.motsShow || "all", rec = GR().motsPts;
   const shown = list.filter(x => filt === "all" || mtState(x) === filt).sort((a, b) => a.w.localeCompare(b.w, "fr"));
   $("pgMots").innerHTML = `<div class="mtwrap">
-    <div class="mthead"><b>Mots</b><span>${cnt("ok")}/${list.length} connus</span></div>
+    <div class="mthead"><b>Mots</b><span>${cnt("ok")}/${list.length} connus</span></div>${mtSeg(tab)}
     <div class="mtbar"><i style="width:${list.length ? cnt("ok") / list.length * 100 : 0}%"></i></div>
-    <button class="mtgo" data-mt="go">C'est parti · ${Math.min(15, list.length)} mots</button>
+    <button class="mtgo" data-mt="go">C'est parti · ${Math.min(12, list.length)} mots</button>
+    <div class="atl-s" style="text-align:center">Mot → définition, puis définition → mot · chrono et séries ×${rec ? " · record " + rec + " pts" : ""}</div>
     <div class="sect">Sur quoi</div><div class="chips mtchips">${chips}</div>
     <div class="sect">Tous les mots · touche pour voir la définition</div>
     <div class="chips mtchips" style="margin-bottom:10px">${[["all", "Tous " + list.length], ["ko", "À retravailler " + cnt("ko")], ["new", "Jamais vus " + cnt("new")], ["ok", "Connus " + cnt("ok")]].map(([v, t]) => `<button data-ms="${v}" class="${filt === v ? "on" : ""}">${t}</button>`).join("")}</div>
     ${shown.map(x => `<button class="mtrow ${mtState(x)}" data-mw="${esc(x.w)}"><span class="mtw">${esc(x.w)}</span><span class="mtd">${esc(x.d)}</span></button>`).join("") || `<div class="atl-s">Aucun mot ici.</div>`}
   </div>`;
 };
+function renderDecoder(){
+  const all = E.composes || [], cnt = st => all.filter(x => dState(x) === st).length, rec = GR().decoder;
+  const view = S.decView || "mots", q = F.fold(S.decQ || "").toLowerCase();
+  const racs = Object.entries(E.racines || {}).filter(([r, m]) => !q || F.fold(r + " " + m).toLowerCase().includes(q)).sort((a, b) => a[0].localeCompare(b[0], "fr"));
+  const words = all.filter(x => !q || F.fold(x.w + " " + x.d).toLowerCase().includes(q)).sort((a, b) => a.w.localeCompare(b.w, "fr"));
+  $("pgMots").innerHTML = `<div class="mtwrap">
+    <div class="mthead"><b>Décoder</b><span>${cnt("ok")}/${all.length} maîtrisés</span></div>${mtSeg("dec")}
+    <div class="mtbar"><i style="width:${all.length ? cnt("ok") / all.length * 100 : 0}%"></i></div>
+    <button class="mtgo" data-mt="dec">Assembler · 10 mots</button>
+    <div class="atl-s" style="text-align:center">Une définition, des morceaux : construis le mot${rec ? " · record " + rec + " pts" : ""}</div>
+    <div class="chips mtchips" style="margin:14px 0 10px">${[["mots", "Mots composés " + all.length], ["rac", "Racines " + Object.keys(E.racines || {}).length]].map(([v, t]) => `<button data-dv="${v}" class="${view === v ? "on" : ""}">${t}</button>`).join("")}</div>
+    <input class="mtsearch" id="decQ" placeholder="Chercher : cardio, rein, sang…" value="${esc(S.decQ || "")}">
+    <div id="decList">${view === "rac"
+      ? `<div class="rcgrid">${racs.map(([r, m]) => `<div><b>${esc(r)}</b>${esc(m)}</div>`).join("") || `<div>Rien trouvé.</div>`}</div>`
+      : words.map(x => `<button class="dcrow ${dState(x)}" data-dw="1"><span class="mtw">${esc(x.w)}</span><span class="mtd" style="color:#bbb;font-size:13.5px;margin-top:4px">${esc(x.d)}<br><span style="color:#ddd">${x.p.map(p => `<b style="color:#25f4ee">${esc(p)}</b> ${esc(rac(p))}`).join(" + ")}</span></span></button>`).join("") || `<div class="atl-s">Rien trouvé.</div>`}</div>
+  </div>`;
+  const inp = $("decQ"); inp.addEventListener("input", () => { S.decQ = inp.value; const pos = inp.selectionStart; renderDecoder(); const n = $("decQ"); n.focus(); n.setSelectionRange(pos, pos); });
+}
 $("pgMots").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.mtab) { S.motsTab = b.dataset.mtab; save(); Sound.SFX.tap(); renderMots(); return; }
   if (b.dataset.mt === "go") { Sound.SFX.tap(); openGame("mots", true); return; }
+  if (b.dataset.mt === "dec") { Sound.SFX.tap(); openGame("decoder"); return; }
+  if (b.dataset.dv) { S.decView = b.dataset.dv; save(); Sound.SFX.tap(); renderDecoder(); return; }
   if (b.dataset.mf) { S.motsF = b.dataset.mf; save(); Sound.SFX.tap(); renderMots(); return; }
   if (b.dataset.ms) { S.motsShow = b.dataset.ms; save(); Sound.SFX.tap(); renderMots(); return; }
-  if (b.dataset.mw !== undefined) { b.classList.toggle("open"); Sound.SFX.tap(); }
+  if (b.dataset.mw !== undefined || b.dataset.dw !== undefined) { b.classList.toggle("open"); Sound.SFX.tap(); }
 });
 
 /* ---------- MES TABLEAUX : tous les tableaux de tes cours, à remplir un par un ---------- */
@@ -1136,8 +1298,10 @@ R({ k:"ordre", sec:"schemas", icon:"listcheck", col:"#13a35a", name:"Remets dans
   rec:g => g.ordre ? "Record : " + g.ordre + "/5 sans faute" : "", ok:() => itemsIn(E.seq).length > 0, start:startOrdre, count:() => itemsIn(E.seq).length + " séquences" });
 R({ k:"fleche", sec:"schemas", icon:"trend", col:"#ff2d87", name:"Schéma fléché", desc:"Une cascade ou une boucle avec des cases vides : remplis-les.",
   rec:g => g.fleche ? "Record : " + g.fleche + "/4 sans faute" : "", ok:() => itemsIn(E.seq).length > 0, start:startFleche });
-R({ k:"mots", sec:"apprendre", icon:"bulb", col:"#25b8ee", name:"Mots", desc:"Un mot de ton cours, 3 définitions : choisis la bonne. Les ratés reviennent.", noSurprise:true,
-  rec:g => g.mots ? "Record : " + g.mots + "/15" : "", ok:() => wordPool().length >= 4, start:startMots, count:() => wordPool().length + " mots" });
+R({ k:"mots", sec:"apprendre", icon:"bulb", col:"#25b8ee", name:"Mots", desc:"Mot → définition puis définition → mot, avec chrono et séries. Les ratés reviennent.", noSurprise:true,
+  rec:g => g.motsPts ? "Record : " + g.motsPts + " pts" : "", ok:() => wordPool().length >= 4, start:startMots, count:() => wordPool().length + " mots" });
+R({ k:"decoder", sec:"apprendre", icon:"puzzle", col:"#ff2d87", name:"Décoder", desc:"Une définition et des morceaux de mots (cardio, myo, cyte…) : assemble le bon mot.", noSurprise:true,
+  rec:g => g.decoder ? "Record : " + g.decoder + " pts" : "", ok:() => (E.composes || []).length >= 4, start:startDecoder, count:() => (E.composes || []).length + " mots" });
 R({ k:"tabs", sec:"schemas", icon:"file", col:"#face15", name:"Mes tableaux", desc:"Tous les tableaux de tes cours, à remplir un par un.", noSurprise:true,
   rec:() => "", ok:() => E.tables.length > 0, start:startTabList, count:() => E.tables.length + " tableaux" });
 R({ k:"tableau", sec:"schemas", icon:"file", col:"#c9a400", name:"Tableau à remplir", desc:"Les tableaux de tes cours, avec des cases vides.",
