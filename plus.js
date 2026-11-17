@@ -317,9 +317,9 @@ function stmtPool(cs){
 }
 function realize(s, v){
   if (s.fixed) return { t:s.t, v:s.v, why:s.why, c:s.c };
-  if (v) return { t:s.tr.t.replace(CLOZE, () => s.ans), v:true, why:`C'est bien « ${s.ans} ».`, c:s.c };
+  if (v) return { t:elide(s.tr.t.replace(CLOZE, () => s.ans)), v:true, why:`C'est bien « ${s.ans} ».`, c:s.c };
   const f = s.tr.faux[Math.random() * s.tr.faux.length | 0];
-  return { t:s.tr.t.replace(CLOZE, () => f), v:false, why:`Il fallait « ${s.ans} », pas « ${f} ».`, c:s.c };
+  return { t:elide(s.tr.t.replace(CLOZE, () => f)), v:false, why:`Il fallait « ${s.ans} », pas « ${f} ».`, c:s.c };
 }
 function makeQcm(pool, title){
   if (pool.length < 5) return null;

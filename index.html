@@ -828,7 +828,7 @@ const shortQ = c => !/\?/.test(c.q) && plain(c.q).split(/\s+/).filter(Boolean).l
 function quizKinds(c){
   const pool = ALL.filter(x => x !== c && x.matiere === c.matiere && shortQ(x)), others = pool.length >= 2 ? pool : ALL.filter(x => x !== c && shortQ(x));
   const k = [];
-  if (others.length >= 2 && shortQ(c) && shortDef(c.a)) k.push("def");
+  if (vocFor(c) || (isTerm(c) && defPrompt(c) && others.filter(isTerm).length >= 2)) k.push("def");
   (c.trous || []).forEach((_, i) => k.push("trou:" + i));
   (c.vf || []).forEach((_, i) => k.push("vf:" + i));
   (c.trous || []).forEach((t, i) => { if (CLOZE.test(t.t) && (t.faux || []).length) k.push("tv:" + i); });   // phrase à trous en vrai/faux
@@ -859,10 +859,32 @@ function shortDef(a){
   return pt.length >= 18 ? t : null;
 }
 // une phrase à trous transformée en affirmation vraie (bonne réponse) ou fausse (un leurre)
+// « de absorption » → « d'absorption », « le ocytocine » → « l'ocytocine » après remplacement d'un trou
+const elide = t => String(t).replace(/(^|[\s(«])([Dd]e|[Ll]e|[Ll]a|[Qq]ue|[Nn]e|[Ss]e)\s+(?=(?:<[^>]+>)*[aeiouyhàâéèêëîïôöûüœæAEIOUYÀÂÉÈÊÎÔŒ])/g, (m, a, w) => a + w.charAt(0) + "'");
+window.elide = elide;
 function trouStatement(tr, truth){
   const ans = (tr.t.match(CLOZE) || [, ""])[1], f = tr.faux[Math.random() * tr.faux.length | 0];
-  return truth ? { t:tr.t.replace(CLOZE, () => ans), why:`<b>Vrai.</b> C'est bien « ${ans} ».` }
-               : { t:tr.t.replace(CLOZE, () => f), why:`<b>Faux.</b> Il fallait « ${ans} », pas « ${f} ».` };
+  return truth ? { t:elide(tr.t.replace(CLOZE, () => ans)), why:`<b>Vrai.</b> C'est bien « ${ans} ».` }
+               : { t:elide(tr.t.replace(CLOZE, () => f)), why:`<b>Faux.</b> Il fallait « ${ans} », pas « ${f} ».` };
+}
+// « Quel mot correspond ? » : seulement pour un vrai mot de cours (pas un titre de chapitre comme « Plèvre et pressions »)
+function isTerm(c){
+  const q = plain(c.q).trim(), w = q.split(/\s+/).filter(Boolean);
+  if (c.type !== "def" || w.length > 4 || /[?:;,()]|\bet\b|\bvs\b|\bou\b|^(les|des|ce|comment|pourquoi|quand)\b|\d/i.test(q)) return false;
+  return true;
+}
+// la définition d'une carte, sans le mot lui-même et seulement si elle se lit bien
+function defPrompt(c){
+  const sd = shortDef(c.a); if (!sd || /\$\$|·/.test(sd)) return null;
+  let t = maskTerm(sd, c.q).replace(/^\s*(<span class="masq">•••<\/span>[\s-]*)+\s*[:=]\s*/, "");
+  const n = (t.match(/class="masq"/g) || []).length, pl = plain(t).trim();
+  if (n > 1 || pl.length < 25 || /^[•\d]/.test(pl) || (pl.match(/\d/g) || []).length > 6) return null;
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+// le mot de la carte dans le vocabulaire de l'onglet Mots (définitions courtes et propres)
+function vocFor(c){
+  const V = (window.EXOS && EXOS.vocab) || [], q = fold(plain(c.q)).replace(/^(le|la|les|l')\s*/, "").trim();
+  return V.find(v => v.matiere === c.matiere && fold(v.w) === q) || V.find(v => v.matiere === c.matiere && v.chapitre === c.chapitre && q.length > 3 && fold(v.w).replace(/^(le|la|les|l')\s*/, "") === q) || null;
 }
 function makeQuiz(c, kind){
   if (kind === "cours") return { quiz:true, kind, c, cours:true, head:"Énonce", prompt:c.q, opts:[], cle:c.cle || null, explain:null };
@@ -890,11 +912,18 @@ function makeQuiz(c, kind){
   const [type, n] = kind.split(":");
   if (type === "tv") return tvQuiz(c, kind, Math.random() < 0.6);
   if (type === "def") {
-    const pool = ALL.filter(x => x !== c && x.matiere === c.matiere && shortQ(x)), others = pool.length >= 2 ? pool : ALL.filter(x => x !== c && shortQ(x));
-    const sd = shortDef(c.a); if (!sd) return null;
-    const near = others.filter(o => o.chapitre === c.chapitre), far = others.filter(o => o.chapitre !== c.chapitre);
-    const opts = shuffle([c, ...[...shuffle(near.slice()), ...shuffle(far.slice())].slice(0, 2)]).map(o => ({ h:o.q, ok:o === c }));
-    return { quiz:true, kind, c, head:"C'est quoi ?", prompt:maskTerm(sd, c.q), opts, explain:null };
+    const v = vocFor(c), V = (window.EXOS && EXOS.vocab) || [];
+    if (v) {   // définition propre de l'onglet Mots, leurres = autres mots du même chapitre
+      const near = V.filter(o => o !== v && o.matiere === v.matiere && o.chapitre === v.chapitre && o.d !== v.d), far = V.filter(o => o !== v && o.matiere === v.matiere && o.chapitre !== v.chapitre);
+      const wrong = [...shuffle(near.slice()), ...shuffle(far.slice())].slice(0, 2);
+      if (wrong.length === 2) return { quiz:true, kind, c, head:"Quel mot correspond ?", prompt:v.d + ".", opts:shuffle([{ h:v.w, ok:true }, ...wrong.map(o => ({ h:o.w, ok:false }))]), explain:`<b>${esc(v.w)}</b> : ${esc(v.d)}.` };
+    }
+    const dp = defPrompt(c); if (!dp || !isTerm(c)) return null;
+    const terms = ALL.filter(x => x !== c && x.matiere === c.matiere && isTerm(x) && fold(x.q) !== fold(c.q));
+    const near = terms.filter(o => o.chapitre === c.chapitre), far = terms.filter(o => o.chapitre !== c.chapitre);
+    const wrong = [...shuffle(near.slice()), ...shuffle(far.slice())].slice(0, 2); if (wrong.length < 2) return null;
+    const opts = shuffle([c, ...wrong]).map(o => ({ h:o.q, ok:o === c }));
+    return { quiz:true, kind, c, head:"Quel mot correspond ?", prompt:dp, opts, explain:null };
   }
   if (type === "trou") {
     const tr = c.trous[+n], ans = (tr.t.match(CLOZE) || [,""])[1];
