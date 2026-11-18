@@ -702,11 +702,12 @@ window.FT_PLUS = { speakable, makeQcm, stmtPool, realize, ccPlan, sessionCards, 
 
 /* ---------- bouton « Lire » sur une carte : question puis réponse ---------- */
 let rdBtn = null;
-function readStop(){ lsStop(); if (rdBtn) { const s = rdBtn.querySelector("span:last-child"); if (s) s.textContent = "Lire"; rdBtn.classList.remove("on-ok"); rdBtn = null; } }
+function readStop(){ LS.tok++; LS.timers.forEach(clearTimeout); LS.timers = []; if (hasTTS) try { if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel(); } catch (e) {} if (rdBtn) { const s = rdBtn.querySelector("span:last-child"); if (s) s.textContent = "Lire"; rdBtn.classList.remove("on-ok"); rdBtn = null; } }
 function readCard(c, btn){
   if (!hasTTS) { toast("Lecture vocale indisponible sur cet appareil"); return; }
   if (rdBtn === btn) { readStop(); return; }
   readStop();
+  try { speechSynthesis.resume(); } catch (e) {}
   const tok = LS.tok; rdBtn = btn; btn.classList.add("on-ok");
   const s = btn.querySelector("span:last-child"); if (s) s.textContent = "Stop";
   const fin = () => { if (tok === LS.tok) readStop(); };
