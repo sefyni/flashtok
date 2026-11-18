@@ -698,3 +698,18 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && listenEl.c
 
 window.FT_PLUS = { speakable, makeQcm, stmtPool, realize, ccPlan, sessionCards, todaysNew, qcmFor, qcmFromCards, nearestMask, courseSort, keyOf, chLabel };   // pour les tests
 })();
+
+
+/* ---------- bouton « Lire » sur une carte : question puis réponse ---------- */
+let rdBtn = null;
+function readStop(){ lsStop(); if (rdBtn) { const s = rdBtn.querySelector("span:last-child"); if (s) s.textContent = "Lire"; rdBtn.classList.remove("on-ok"); rdBtn = null; } }
+function readCard(c, btn){
+  if (!hasTTS) { toast("Lecture vocale indisponible sur cet appareil"); return; }
+  if (rdBtn === btn) { readStop(); return; }
+  readStop();
+  const tok = LS.tok; rdBtn = btn; btn.classList.add("on-ok");
+  const s = btn.querySelector("span:last-child"); if (s) s.textContent = "Stop";
+  const fin = () => { if (tok === LS.tok) readStop(); };
+  say(speakable(c.q), tok, () => { if (tok === LS.tok) say("Réponse. " + speakable(c.a), tok, fin); });
+}
+document.addEventListener("visibilitychange", () => { if (document.hidden) readStop(); });

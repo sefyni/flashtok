@@ -974,6 +974,7 @@ function cardSlide(item, i){
     <div class="rail">
       <button class="avatar" data-act="acct">${m.emoji}</button>
       <button class="act ${isFav(c) ? "on-ok" : ""}" data-act="fav"><span class="ic">${ICON.heart}</span><span>Favori</span></button>
+      <button class="act" data-act="read"><span class="ic">${ic("vol2", 30, "#fff")}</span><span>Lire</span></button>
       <button class="act" data-act="comments"><span class="ic">${ICON.bubble}</span><span class="ncom">${nComments(c) || "Note"}</span></button>
       ${c.demo ? `<button class="act" data-act="demo"><span class="ic">${ICON.demo}</span><span>Démo</span></button>`
                : `<button class="act" data-act="flip"><span class="ic">${ICON.flip}</span><span>Retourner</span></button>`}
@@ -1128,6 +1129,7 @@ feedEl.addEventListener("click", e => {
     else if (a === "demo") openDemo(c);
     else if (a === "acct") openAcct(c.matiere);
     else if (a === "fav") setFav(slide, c, !isFav(c), e);
+    else if (a === "read") readCard(c, btn);
     return;
   }
   const gb = e.target.closest("[data-g]"); if (gb) { rate(slide, c, +gb.dataset.g, e); return; }
