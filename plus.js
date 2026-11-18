@@ -701,15 +701,40 @@ window.FT_PLUS = { speakable, makeQcm, stmtPool, realize, ccPlan, sessionCards, 
 /* ---------- bouton « Lire » sur une carte : question puis réponse ---------- */
 let rdBtn = null;
 function readStop(){ LS.tok++; LS.timers.forEach(clearTimeout); LS.timers = []; if (hasTTS) try { if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel(); } catch (e) {} if (rdBtn) { const s = rdBtn.querySelector("span:last-child"); if (s) s.textContent = "Lire"; rdBtn.classList.remove("reading"); rdBtn = null; } }
+function readSay(text, tok, done, fail){
+  const parts = chunks(text); let k = 0, plainVoice = false, tries = 0;
+  const next = () => {
+    if (tok !== LS.tok) return;
+    if (k >= parts.length) { done(); return; }
+    const u = new SpeechSynthesisUtterance(parts[k]);
+    u.lang = "fr-FR"; if (frVoice && !plainVoice) u.voice = frVoice; u.rate = 1;
+    let fired = false; const t0 = Date.now();
+    const ok = () => { if (fired) return; fired = true; clearTimeout(g); k++; tries = 0; next(); };
+    const ko = ev => {
+      if (fired) return; fired = true; clearTimeout(g);
+      const code = ev && ev.error || "inconnue";
+      if (code === "interrupted" || code === "canceled") return;
+      if (tries < 2) { tries++; plainVoice = true; setTimeout(next, 250); return; }   // 2e essai : voix par défaut du téléphone
+      fail(code);
+    };
+    u.onend = () => (Date.now() - t0 < 80 && parts[k].length > 8) ? ko({ error:"muet" }) : ok();
+    u.onerror = ko;
+    const g = setTimeout(ok, 4000 + parts[k].length * 120);
+    try { speechSynthesis.speak(u); } catch (e) { ko({ error:String(e) }); }
+  };
+  next();
+}
 function readCard(c, btn){
-  if (!hasTTS) { toast("Lecture vocale indisponible sur cet appareil"); return; }
+  if (!hasTTS) { toast("Ce navigateur n'a pas de voix : ouvre l'appli dans Safari ou Chrome"); return; }
   if (rdBtn === btn) { readStop(); return; }
   readStop();
   try { speechSynthesis.resume(); } catch (e) {}
-  const tok = LS.tok; rdBtn = btn; btn.classList.add("reading"); toast("Lecture en cours…", "vol2");
+  const tok = LS.tok; rdBtn = btn; btn.classList.add("reading");
   const s = btn.querySelector("span:last-child"); if (s) s.textContent = "Stop";
-  const fin = () => { if (tok === LS.tok) readStop(); };
-  say(speakable(c.q), tok, () => { if (tok === LS.tok) say("Réponse. " + speakable(c.a), tok, fin); });
+  const t0 = Date.now();
+  const fin = () => { if (tok !== LS.tok) return; setTimeout(() => { if (tok === LS.tok) readStop(); }, Math.max(0, 1200 - (Date.now() - t0))); };
+  const fail = code => { toast("Pas de voix (erreur : " + code + "). Vérifie le mode silencieux et le volume."); fin(); };
+  readSay(speakable(c.q), tok, () => { if (tok === LS.tok) readSay("Réponse. " + speakable(c.a), tok, fin, fail); }, fail);
 }
 document.addEventListener("visibilitychange", () => { if (document.hidden) readStop(); });
 window.readCard = readCard;
