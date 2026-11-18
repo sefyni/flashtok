@@ -697,8 +697,6 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 document.addEventListener("keydown", e => { if (e.key === "Escape" && listenEl.classList.contains("show")) lsClose(); });
 
 window.FT_PLUS = { speakable, makeQcm, stmtPool, realize, ccPlan, sessionCards, todaysNew, qcmFor, qcmFromCards, nearestMask, courseSort, keyOf, chLabel };   // pour les tests
-})();
-
 
 /* ---------- bouton « Lire » sur une carte : question puis réponse ---------- */
 let rdBtn = null;
@@ -714,3 +712,5 @@ function readCard(c, btn){
   say(speakable(c.q), tok, () => { if (tok === LS.tok) say("Réponse. " + speakable(c.a), tok, fin); });
 }
 document.addEventListener("visibilitychange", () => { if (document.hidden) readStop(); });
+window.readCard = readCard;
+})();
