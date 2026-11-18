@@ -420,7 +420,7 @@ function fxHit(i, good, half){
   const sec = (Date.now() - FX.t) / 1000;
   if (!good) { FX.combo = 0; FX.res[i] = "ko"; return 0; }
   FX.combo++; FX.best = Math.max(FX.best, FX.combo); FX.res[i] = "ok";
-  const speed = Math.max(0, Math.round(50 * (1 - sec / FX_T)));
+  const speed = 0;   // pas de chrono
   const pts = Math.round((100 + speed) * (1 + 0.25 * Math.min(FX.combo - 1, 4)) * (half ? .5 : 1));
   FX.pts += pts;
   const box = gameEl.querySelector(".gbody"); if (box) { box.style.position = "relative"; const p = document.createElement("div"); p.className = "fxpop"; p.textContent = "+" + pts; box.appendChild(p); setTimeout(() => p.remove(), 950); }
@@ -470,7 +470,7 @@ function wdRound(){
   WD.ans = rev ? x.w : x.d;
   WD.opts = shuffle([WD.ans, ...wrong.map(y => rev ? y.w : y.d)]);
   wdTop();
-  $("wdBox").innerHTML = `<div class="fxtime"><i id="fxT"></i></div><div class="wdcard"><span class="wdtag ${rev ? "rev" : ""}">${rev ? "Quel mot ?" : "Quelle définition ?"}</span>
+  $("wdBox").innerHTML = `<div class="wdcard"><span class="wdtag ${rev ? "rev" : ""}">${rev ? "Quel mot ?" : "Quelle définition ?"}</span>
     ${rev ? `<div class="wddef">${esc(x.d)}</div>` : `<div class="wdw">${esc(x.w)}</div>`}<div class="atl-s" style="margin:6px 0 0">${sub(x)}</div></div>
     <div class="wdopts ${rev ? "grid" : ""}">${WD.opts.map((d, k) => `<button data-wd="${k}">${esc(d)}</button>`).join("")}</div><div id="wdFb"></div>`;
   fxStart();
@@ -513,7 +513,7 @@ function dcRound(){
   DC.chips = shuffle([...x.p, ...others.slice(0, extra)]);
   Object.assign(DC, { slots:x.p.map(() => null), hint:false, done:false });
   dcTop();
-  $("dcBox").innerHTML = `<div class="fxtime"><i id="fxT"></i></div><div class="wdcard"><span class="wdtag rev">${x.p.length} morceaux</span><div class="wddef">${esc(x.d)}</div></div><div id="dcPlay"></div>`;
+  $("dcBox").innerHTML = `<div class="wdcard"><span class="wdtag rev">${x.p.length} morceaux</span><div class="wddef">${esc(x.d)}</div></div><div id="dcPlay"></div>`;
   dcDraw(); fxStart();
 }
 function dcDraw(){
@@ -570,7 +570,7 @@ window.renderMots = function(){
     <div class="mthead"><b>Mots</b><span>${cnt("ok")}/${list.length} connus</span></div>${mtSeg(tab)}
     <div class="mtbar"><i style="width:${list.length ? cnt("ok") / list.length * 100 : 0}%"></i></div>
     <button class="mtgo" data-mt="go">C'est parti · ${Math.min(12, list.length)} mots</button>
-    <div class="atl-s" style="text-align:center">Mot → définition, puis définition → mot · chrono et séries ×${rec ? " · record " + rec + " pts" : ""}</div>
+    <div class="atl-s" style="text-align:center">Mot → définition, puis définition → mot · séries ×${rec ? " · record " + rec + " pts" : ""}</div>
     <div class="sect">Sur quoi</div><div class="chips mtchips">${chips}</div>
     <div class="sect">Tous les mots · touche pour voir la définition</div>
     <div class="chips mtchips" style="margin-bottom:10px">${[["all", "Tous " + list.length], ["ko", "À retravailler " + cnt("ko")], ["new", "Jamais vus " + cnt("new")], ["ok", "Connus " + cnt("ok")]].map(([v, t]) => `<button data-ms="${v}" class="${filt === v ? "on" : ""}">${t}</button>`).join("")}</div>
@@ -1298,7 +1298,7 @@ R({ k:"ordre", sec:"schemas", icon:"listcheck", col:"#13a35a", name:"Remets dans
   rec:g => g.ordre ? "Record : " + g.ordre + "/5 sans faute" : "", ok:() => itemsIn(E.seq).length > 0, start:startOrdre, count:() => itemsIn(E.seq).length + " séquences" });
 R({ k:"fleche", sec:"schemas", icon:"trend", col:"#ff2d87", name:"Schéma fléché", desc:"Une cascade ou une boucle avec des cases vides : remplis-les.",
   rec:g => g.fleche ? "Record : " + g.fleche + "/4 sans faute" : "", ok:() => itemsIn(E.seq).length > 0, start:startFleche });
-R({ k:"mots", sec:"apprendre", icon:"bulb", col:"#25b8ee", name:"Mots", desc:"Mot → définition puis définition → mot, avec chrono et séries. Les ratés reviennent.", noSurprise:true,
+R({ k:"mots", sec:"apprendre", icon:"bulb", col:"#25b8ee", name:"Mots", desc:"Mot → définition puis définition → mot, avec séries. Les ratés reviennent.", noSurprise:true,
   rec:g => g.motsPts ? "Record : " + g.motsPts + " pts" : "", ok:() => wordPool().length >= 4, start:startMots, count:() => wordPool().length + " mots" });
 R({ k:"decoder", sec:"apprendre", icon:"puzzle", col:"#ff2d87", name:"Décoder", desc:"Une définition et des morceaux de mots (cardio, myo, cyte…) : assemble le bon mot.", noSurprise:true,
   rec:g => g.decoder ? "Record : " + g.decoder + " pts" : "", ok:() => (E.composes || []).length >= 4, start:startDecoder, count:() => (E.composes || []).length + " mots" });
