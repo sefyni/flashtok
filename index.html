@@ -421,6 +421,14 @@
   .katex-display { overflow-x:auto; overflow-y:hidden; max-width:100%; margin:.6em 0; padding:2px 0; }
   .katex-display > .katex { font-size:.88em; }
 </style>
+<style>
+.act.reading .ic{animation:rdpulse .9s ease-in-out infinite;color:#2fd27a;filter:drop-shadow(0 0 8px #2fd27a)}
+.act.reading .ic::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid #2fd27a;animation:rdring 1.2s ease-out infinite;pointer-events:none}
+.act.reading .ic{position:relative}
+.act.reading>span:last-child{color:#2fd27a}
+@keyframes rdpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}
+@keyframes rdring{0%{transform:scale(.8);opacity:.9}100%{transform:scale(1.7);opacity:0}}
+</style>
 </head>
 <body>
 
