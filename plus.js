@@ -564,7 +564,13 @@ function chunks(t){
 }
 const hasTTS = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
 let frVoice = null;
-function pickVoice(){ try { const vs = speechSynthesis.getVoices(); frVoice = vs.find(v => /^fr[-_]FR/i.test(v.lang) && /Thomas|Amélie|Audrey|Aurélie|Google|Marie/i.test(v.name)) || vs.find(v => /^fr[-_]FR/i.test(v.lang)) || vs.find(v => /^fr/i.test(v.lang)) || null; } catch (e) {} }
+function pickVoice(){ try {
+  const vs = speechSynthesis.getVoices().filter(v => /^fr/i.test(v.lang));
+  const score = v => (/premium/i.test(v.name) ? 60 : 0) + (/enhanced|amélior|ameliore|neural|natural|naturel/i.test(v.name + " " + v.voiceURI) ? 40 : 0)
+    + (/siri/i.test(v.name + " " + v.voiceURI) ? 30 : 0) + (/Google/i.test(v.name) ? 20 : 0) + (/Audrey|Amélie|Aurélie|Marie|Thomas/i.test(v.name) ? 10 : 0)
+    + (/^fr[-_]FR/i.test(v.lang) ? 5 : 0) - (/compact|eloquence|grandma|grandpa|rocko|shelley|flo|reed|sandy|jacques/i.test(v.name + " " + v.voiceURI) ? 50 : 0);
+  frVoice = vs.sort((a, b) => score(b) - score(a))[0] || null;
+} catch (e) {} }
 if (hasTTS) { pickVoice(); try { speechSynthesis.addEventListener("voiceschanged", pickVoice); } catch (e) { speechSynthesis.onvoiceschanged = pickVoice; } }
 
 const LS = { decks:[], deckKey:"session", deck:[], i:0, title:"", playing:false, phase:"q", rate:1, pause:3, tok:0, timers:[], lock:null, heard:0 };
@@ -707,7 +713,7 @@ function readSay(text, tok, done, fail){
     if (tok !== LS.tok) return;
     if (k >= parts.length) { done(); return; }
     const u = new SpeechSynthesisUtterance(parts[k]);
-    u.lang = "fr-FR"; if (frVoice && !plainVoice) u.voice = frVoice; u.rate = 1;
+    u.lang = "fr-FR"; if (frVoice && !plainVoice) u.voice = frVoice; u.rate = 0.95; u.pitch = 0.95;
     let fired = false; const t0 = Date.now();
     const ok = () => { if (fired) return; fired = true; clearTimeout(g); k++; tries = 0; next(); };
     const ko = ev => {
