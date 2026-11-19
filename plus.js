@@ -569,7 +569,8 @@ function pickVoice(){ try {
   const score = v => (/premium/i.test(v.name) ? 60 : 0) + (/enhanced|amélior|ameliore|neural|natural|naturel/i.test(v.name + " " + v.voiceURI) ? 40 : 0)
     + (/siri/i.test(v.name + " " + v.voiceURI) ? 30 : 0) + (/Google/i.test(v.name) ? 20 : 0) + (/Audrey|Amélie|Aurélie|Marie|Thomas/i.test(v.name) ? 10 : 0)
     + (/^fr[-_]FR/i.test(v.lang) ? 5 : 0) - (/compact|eloquence|grandma|grandpa|rocko|shelley|flo|reed|sandy|jacques/i.test(v.name + " " + v.voiceURI) ? 50 : 0);
-  frVoice = vs.sort((a, b) => score(b) - score(a))[0] || null;
+  let saved = null; try { saved = localStorage.getItem("ft_voice"); } catch (e) {}
+  frVoice = (saved && vs.find(v => v.voiceURI === saved)) || vs.sort((a, b) => score(b) - score(a))[0] || null;
 } catch (e) {} }
 if (hasTTS) { pickVoice(); try { speechSynthesis.addEventListener("voiceschanged", pickVoice); } catch (e) { speechSynthesis.onvoiceschanged = pickVoice; } }
 
@@ -613,6 +614,8 @@ function lsSetup(){
       ${hasTTS ? "" : `<p class="note" style="color:#face15">La voix n'est pas disponible dans ce navigateur : les cartes défileront toutes seules, sans le son.</p>`}
       <div class="sect">Quoi écouter</div><div class="chips">${LS.decks.map(d => chip(`data-ld="${esc(d.k)}"`, d.k === LS.deckKey, `${esc(d.nom)} · ${d.cards.length}`)).join("")}</div>
       <div class="sect">Vitesse de la voix</div><div class="chips">${[0.8, 1, 1.2, 1.4].map(r => chip(`data-lr="${r}"`, LS.rate === r, "×" + String(r).replace(".", ","))).join("")}</div>
+      ${hasTTS ? (() => { pickVoice(); const vs = speechSynthesis.getVoices().filter(v => /^fr/i.test(v.lang));
+        return `<div class="sect">Voix (touche pour écouter)</div>` + (vs.length ? `<div class="chips">${vs.map((v, i) => chip(`data-lv="${i}"`, frVoice && v.voiceURI === frVoice.voiceURI, esc(v.name) + (/enhanced|premium/i.test(v.voiceURI + v.name) ? " ★" : ""))).join("")}</div>` : `<p class="note">Aucune voix française trouvée pour l'instant.</p>`); })() : ""}
       <div class="sect">Temps pour réfléchir</div><div class="chips">${[2, 3, 5, 8].map(s => chip(`data-lp="${s}"`, LS.pause === s, s + " s")).join("")}</div>
       <button class="submit" data-l="start" ${LS.deckKey ? "" : "disabled style=opacity:.4"}><span class="ico-row" style="justify-content:center">${ic("play", 16)} Lancer l'écoute</span></button>
     </div>`;
@@ -673,6 +676,12 @@ listenEl.addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   const l = b.dataset.l;
   if (b.dataset.ld) { LS.deckKey = b.dataset.ld; Sound.SFX.tap(); lsSetup(); return; }
+  if (b.dataset.lv !== undefined) {
+    const v = speechSynthesis.getVoices().filter(x => /^fr/i.test(x.lang))[+b.dataset.lv]; if (!v) return;
+    try { localStorage.setItem("ft_voice", v.voiceURI); } catch (e) {}
+    frVoice = v; lsStop(); const u = new SpeechSynthesisUtterance("Bonjour, je vais lire tes cartes."); u.lang = v.lang; u.voice = v; u.rate = 0.95;
+    try { speechSynthesis.speak(u); } catch (e) {} lsSetup(); return;
+  }
   if (b.dataset.lr) { LS.rate = +b.dataset.lr; Sound.SFX.tap(); lsSetup(); return; }
   if (b.dataset.lp) { LS.pause = +b.dataset.lp; Sound.SFX.tap(); lsSetup(); return; }
   if (b.dataset.lg) {
